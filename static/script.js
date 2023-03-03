@@ -9,13 +9,14 @@ function setClock() {
         let data = clock.dataset.format
         clockInterval = setInterval(() => {
             let time = new Date();
+            let hours = time.getHours()
+            let minutes = ('0' + time.getMinutes()).slice(-2)
             if (data == "military") {
-                clock.innerText = `${time.getHours()}:${time.getMinutes()}`
+                clock.innerText = `${hours}:${minutes}`
             }
             else {
-                let hours = time.getHours()
                 let apm = (hours % 12 == 0) ? 'am' : 'pm'
-                clock.innerText = `${Math.floor(hours / 12)}:${time.getMinutes()} ${apm}`
+                clock.innerText = `${(hours / 12).toFixed(0)}:${minutes} ${apm}`
             }
         }, 100)
     }
