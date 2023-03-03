@@ -13,7 +13,16 @@ impl Config {
         Self {
             site_name: "test".to_string(),
             clock: Some(Clock::Military),
-            ..Default::default()
+            search_engines: Some(vec![SearchEngine {
+                name: "bing".to_owned(),
+                url: "https://bing.com".to_owned(),
+                icon: "https://bing.com/icon".to_owned(),
+            }]),
+            weather: Some(Weather {
+                lat: 40.7484,
+                lng: 73.9857,
+                metric: true,
+            }),
         }
     }
 }
