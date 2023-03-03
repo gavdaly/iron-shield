@@ -12,16 +12,16 @@ impl Site {
     pub fn load() -> Vec<Self> {
         vec![
             Self {
-                name: "One".to_owned(),
-                url: "http://example.com".to_owned(),
-                icon: "http://image.png".to_owned(),
-                tags: vec!["exterior".to_owned(), "next".to_owned()],
+                name: "OpenWeatherMap".to_owned(),
+                url: "https://openweathermap.org/api".to_owned(),
+                icon: "http://openweathermap.org/themes/openweathermap/assets/vendor/owm/img/icons/logo_60x60.png".to_owned(),
+                tags: vec!["weather".to_owned(), "project".to_owned()],
             },
             Self {
-                name: "Two".to_owned(),
-                url: "http://google.com".to_owned(),
-                icon: "icon".to_owned(),
-                tags: vec!["exterior".to_owned()],
+                name: "Bing".to_owned(),
+                url: "https://bing.com".to_owned(),
+                icon: "http://openweathermap.org/themes/openweathermap/assets/vendor/owm/img/icons/logo_60x60.png".to_owned(),
+                tags: vec!["search".to_owned(), "project".to_owned()],
             },
         ]
     }
