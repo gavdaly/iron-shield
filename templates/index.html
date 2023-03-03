@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta viewport="width=device-width, initial-scale=1">
+    <title>My App</title>
+  </head>
+  <body>
+    <h1>{{config.site_name}}</h1>
+    <p>My App is a great app.</p>
+    <div class="sites">
+      {% for site in sites %}
+      <div class="site">
+          <a href={{site.url}}>
+          <img src={{site.icon}} alt="{{site.name}} icon">
+          <span>{{site.name}}</span>
+        </a>
+        <ul class="tags">
+          {% for tag in site.tags %}
+          <li class="tag">#{{tag}}</li>
+          {% endfor %}
+        </ul>
+        </div>
+      {% endfor %}
+    </div>
+  </body>
+</html>
