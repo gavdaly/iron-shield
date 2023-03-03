@@ -9,6 +9,16 @@
     <h1>{{config.site_name}}</h1>
     <p>My App is a great app.</p>
     <time class="clock" data-format={{config.clock}}>[time]</time>
+    {% for engines in config.search_engines %} 
+    <form class="search" action="">
+      {% for engine in engines %}
+        <div>{{engine.name}} - {{engine.url}} - {{engine.icon}}</div>
+      {% endfor %}
+       <label for="search">search</label>
+    <input type="search" name="search" id="search" placeholder="search">
+    </form>
+  {% endfor %}
+   
     <div class="sites">
       {% for site in sites %}
       <div class="site">
