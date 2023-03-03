@@ -2,3 +2,36 @@
     background-color: #333;
     color: #ccc;
 }
+
+#clock {
+    font-size: 10vmin;
+}
+
+#search {
+    display: flex;
+}
+
+#sites {
+    display: flex;
+}
+
+.site a {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+}
+
+.tag {
+    background: blue;
+    font-size:  0.5rem;
+    gap: 1rem;
+    padding: 0.25rem 1rem;
+    border-radius: 1rem;
+}
+
