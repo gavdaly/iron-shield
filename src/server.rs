@@ -5,7 +5,7 @@ use tower_http::services::ServeDir;
 pub async fn run() {
     let app = Router::new()
         .route("/", get(generate_index))
-        .nest_service("/", ServeDir::new("static"));
+        .nest_service("/static", ServeDir::new("static"));
 
     let address = &"0.0.0.0:3000".parse().expect("Error parsing address");
 
