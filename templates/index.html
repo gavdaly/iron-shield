@@ -8,6 +8,7 @@
   <body>
     <h1>{{config.site_name}}</h1>
     <p>My App is a great app.</p>
+    <time class="clock" data-format={{config.clock}}>[time]</time>
     <div class="sites">
       {% for site in sites %}
       <div class="site">

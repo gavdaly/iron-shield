@@ -16,6 +16,17 @@ pub enum Clock {
     Standard,
 }
 
+impl std::fmt::Display for Clock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Clock::*;
+        match self {
+            None=> f.write_str("none"),
+            Military => f.write_str("military"),
+            Standard => f.write_str("standard")
+        }
+    }
+}
+
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Weather {
     pub api: String,
