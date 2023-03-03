@@ -2,7 +2,7 @@ use crate::index::generate_index;
 use axum::{routing::get, Router};
 use tower_http::services::ServeDir;
 
-pub async fn run() -> () {
+pub async fn run() {
     let app = Router::new()
         .route("/", get(generate_index))
         .nest_service("/", ServeDir::new("static"));
