@@ -1,58 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta viewport="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="/static/style.css" />
+        <script src="/static/script.js" async></script>
+        <title>{{config.site_name}}</title>
+    </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta viewport="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/static/style.css" />
-  <script src="/static/script.js" async></script>
-  <title>{{config.site_name}}</title>
-</head>
+    <body>
+        {% match config.clock %} {% when Some with (clock) %}
+        <time id="clock" data-format="{{clock}}"></time>
+        {% when None %} {% endmatch %}
 
-<body>
-  {% match config.clock %}
-  {% when Some with (clock) %}
-  <time id="clock" data-format={{clock}}></time>
-  {% when None %}
-  {% endmatch %}
-
-  {% match config.search_engines %}
-  {% when Some with (engines) %}
-  <form id="search" action="">
-    <select name="" id="">
-      {% for engine in engines %}
-      <option>{{engine.name}}</option>
-      {% endfor %}
-    </select>
-    <div>
-      <label for="search">search</label>
-      <input type="search" name="search" id="search" placeholder="search">
-    </div>
-  </form>
-  {% when None %}
-  {% endmatch %}
-
-  {% match config.weather %}
-  {% when Some with (weather) %}
-  <section id="weather" data-lat={{weather.lat}} data-lng={{weather.lng}} data-metric={{weather.metric}}></section>
-  {% when None %}
-  {% endmatch %}
-
-  <div id="sites">
-    {% for site in sites %}
-    <div class="site">
-      <a href={{site.url}}>
-        <img src={{site.icon}} alt="{{site.name}} icon">
-        <span>{{site.name}}</span>
-      </a>
-      <ul class="tags">
-        {% for tag in site.tags %}
-        <li class="tag">{{tag}}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% endfor %}
-  </div>
-</body>
-
+        <div id="sites">
+            {% for site in config.sites %}
+            <div class="site">
+                <a href="{{site.url}}">
+                    <span>{{site.name}}</span>
+                </a>
+                <ul class="tags">
+                    {% for tag in site.tags %}
+                    <li class="tag">{{tag}}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </body>
 </html>
