@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Site {
@@ -10,7 +11,8 @@ pub struct Site {
 
 impl Site {
     pub fn load() -> Vec<Self> {
-        vec![
+        tracing::debug!("Loading sites configuration");
+        let sites = vec![
             Self {
                 name: "OpenWeatherMap".to_owned(),
                 url: "https://openweathermap.org/api".to_owned(),
@@ -23,6 +25,8 @@ impl Site {
                 icon: "http://openweathermap.org/themes/openweathermap/assets/vendor/owm/img/icons/logo_60x60.png".to_owned(),
                 tags: vec!["search".to_owned(), "project".to_owned()],
             },
-        ]
+        ];
+        tracing::info!("Loaded {} sites", sites.len());
+        sites
     }
 }

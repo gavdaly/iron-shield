@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
@@ -10,7 +11,8 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Self {
-        Self {
+        tracing::debug!("Loading application configuration");
+        let config = Self {
             site_name: "test".to_string(),
             clock: Some(Clock::Military),
             search_engines: Some(vec![SearchEngine {
@@ -23,7 +25,9 @@ impl Config {
                 lng: 73.9857,
                 metric: true,
             }),
-        }
+        };
+        tracing::info!("Configuration loaded successfully");
+        config
     }
 }
 
