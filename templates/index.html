@@ -13,6 +13,10 @@
     </head>
 
     <body>
+        <button id="theme-toggle" aria-label="Toggle dark/light mode">
+            🌙
+        </button>
+
         {% match config.clock %} {% when Clock::TwentyFourHour %}
         <div id="clock-container">
             <div id="time" data-format="24hour"></div>
@@ -24,18 +28,8 @@
         {% when Clock::NoClock %} {% endmatch %}
 
         <div id="sites">
-            {% for site in config.sites %}
-            <div class="site">
-                <a href="{{site.url}}">
-                    <span>{{site.name}}</span>
-                </a>
-                <ul class="tags">
-                    {% for tag in site.tags %}
-                    <li class="tag">{{tag}}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endfor %}
+            {% for site in config.sites %} {% include "site_card.html" %} {%
+            endfor %}
         </div>
     </body>
 </html>
