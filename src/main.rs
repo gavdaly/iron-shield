@@ -3,7 +3,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 mod config;
 mod index;
 mod server;
-mod sites;
 
 #[tokio::main]
 async fn main() {
