@@ -20,6 +20,9 @@ pub enum IronShieldError {
     /// Error occurred while parsing configuration
     ConfigParse(json5::Error),
 
+    /// Error occurred while serializing/deserializing JSON
+    JsonParse(serde_json::Error),
+
     /// Generic error with a message
     Generic(String),
 }
@@ -39,6 +42,9 @@ impl fmt::Display for IronShieldError {
             IronShieldError::ConfigParse(e) => {
                 write!(f, "Failed to parse configuration: {e}")
             }
+            IronShieldError::JsonParse(e) => {
+                write!(f, "Failed to parse JSON: {e}")
+            }
             IronShieldError::Generic(msg) => {
                 write!(f, "Error: {msg}")
             }
@@ -53,6 +59,7 @@ impl std::error::Error for IronShieldError {
             IronShieldError::ServerRun(e) => Some(e),
             IronShieldError::ConfigRead(e) => Some(e),
             IronShieldError::ConfigParse(e) => Some(e),
+            IronShieldError::JsonParse(e) => Some(e),
             IronShieldError::Generic(_) => None,
         }
     }
@@ -79,6 +86,12 @@ impl From<std::io::Error> for IronShieldError {
 impl From<json5::Error> for IronShieldError {
     fn from(error: json5::Error) -> Self {
         IronShieldError::ConfigParse(error)
+    }
+}
+
+impl From<serde_json::Error> for IronShieldError {
+    fn from(error: serde_json::Error) -> Self {
+        IronShieldError::JsonParse(error)
     }
 }
 

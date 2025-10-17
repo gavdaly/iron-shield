@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Clock, Config};
 use askama_axum::Template;
 use axum::{
     http::StatusCode,

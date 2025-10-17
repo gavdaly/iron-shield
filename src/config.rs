@@ -8,8 +8,8 @@ use std::fs;
 pub struct Config {
     /// Name of the site displayed in the page title
     pub site_name: String,
-    /// Clock format to use (24-hour or 12-hour)
-    pub clock: Option<Clock>,
+    /// Clock format to use (24-hour, 12-hour, or no clock)
+    pub clock: Clock,
     /// List of bookmarked sites to display
     pub sites: Vec<Site>,
 }
@@ -40,7 +40,25 @@ impl Config {
     pub fn load() -> crate::error::Result<Self> {
         tracing::debug!("Loading application configuration");
         let config_str = fs::read_to_string("config.json5")?;
-        let config: Config = json5::from_str(&config_str)?;
+
+        // Deserialize to a JSON Value first to check if clock field exists
+        let mut value: serde_json::Value = json5::from_str(&config_str)?;
+
+        // If clock field is missing, set it to the default
+        if value.get("clock").is_none() {
+            if let Some(obj) = value.as_object_mut() {
+                obj.insert(
+                    "clock".to_string(),
+                    serde_json::Value::String("NoClock".to_string()),
+                );
+            } else {
+                return Err(crate::error::IronShieldError::Generic(
+                    "Config is not an object".to_string(),
+                ));
+            }
+        }
+
+        let config: Config = serde_json::from_value(value)?;
 
         tracing::info!("Configuration loaded successfully");
         Ok(config)
@@ -55,8 +73,10 @@ pub enum Clock {
     /// 24-hour format (e.g., 13:00)
     TwentyFourHour,
     /// 12-hour format with AM/PM (e.g., 1:00 PM)
-    #[default]
     TwelveHour,
+    /// No clock displayed
+    #[default]
+    NoClock,
 }
 
 impl std::fmt::Display for Clock {
@@ -70,10 +90,10 @@ impl std::fmt::Display for Clock {
     ///
     /// Result of the formatting operation
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Clock::{TwelveHour, TwentyFourHour};
         match self {
-            TwentyFourHour => f.write_str("24hour"),
-            TwelveHour => f.write_str("12hour"),
+            Clock::TwentyFourHour => f.write_str("24hour"),
+            Clock::TwelveHour => f.write_str("12hour"),
+            Clock::NoClock => f.write_str("noclock"),
         }
     }
 }

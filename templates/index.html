@@ -9,9 +9,11 @@
     </head>
 
     <body>
-        {% match config.clock %} {% when Some with (clock) %}
-        <time id="clock" data-format="{{clock}}"></time>
-        {% when None %} {% endmatch %}
+        {% match config.clock %} {% when Clock::TwentyFourHour %}
+        <time id="clock" data-format="24hour"></time>
+        {% when Clock::TwelveHour %}
+        <time id="clock" data-format="12hour"></time>
+        {% when Clock::NoClock %} {% endmatch %}
 
         <div id="sites">
             {% for site in config.sites %}
