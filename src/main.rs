@@ -2,6 +2,7 @@ use std::env;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod config;
+mod error;
 mod index;
 mod server;
 
@@ -24,7 +25,10 @@ async fn main() {
     tracing::info!("Starting Iron Shield application");
     tracing::debug!("Application initialized with tracing enabled");
 
-    server::run(port).await;
+    if let Err(e) = server::run(port).await {
+        eprintln!("Application error: {e}");
+        tracing::error!("Server error: {e}");
+    }
 
     tracing::info!("Iron Shield application shutting down");
 }

@@ -30,19 +30,20 @@ pub struct Site {
 impl Config {
     /// Load the application configuration from the config.json5 file.
     ///
-    /// # Panics
+    /// # Returns
     ///
-    /// This function will panic if:
-    /// - The config.json5 file cannot be read
-    /// - The config.json5 file does not contain valid JSON5
-    /// - The JSON5 does not match the expected Config structure
-    pub fn load() -> Self {
+    /// Returns the loaded Config if successful, or an `IronShieldError` if an error occurs
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the configuration file cannot be read or parsed
+    pub fn load() -> crate::error::Result<Self> {
         tracing::debug!("Loading application configuration");
-        let config_str = fs::read_to_string("config.json5").expect("Failed to read config.json5");
-        let config: Config = json5::from_str(&config_str).expect("Failed to parse config.json5");
+        let config_str = fs::read_to_string("config.json5")?;
+        let config: Config = json5::from_str(&config_str)?;
 
         tracing::info!("Configuration loaded successfully");
-        config
+        Ok(config)
     }
 }
 

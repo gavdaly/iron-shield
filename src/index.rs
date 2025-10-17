@@ -1,5 +1,9 @@
 use crate::config::Config;
 use askama_axum::Template;
+use axum::{
+    http::StatusCode,
+    response::{Html, IntoResponse},
+};
 
 /// Template structure for the index page
 ///
@@ -15,11 +19,32 @@ pub struct IndexTemplate {
 ///
 /// # Returns
 ///
-/// An `IndexTemplate` instance with the loaded configuration
-pub async fn generate_index() -> IndexTemplate {
+/// An HTML response with the index template or an error response
+pub async fn generate_index() -> impl IntoResponse {
     tracing::debug!("Generating index template");
-    let config = Config::load();
 
-    tracing::info!("Index template generated with config");
-    IndexTemplate { config }
+    match Config::load() {
+        Ok(config) => {
+            let template = IndexTemplate { config };
+            match template.render() {
+                Ok(html) => Html(html).into_response(),
+                Err(e) => {
+                    tracing::error!("Template rendering error: {}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Template rendering error",
+                    )
+                        .into_response()
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!("Configuration loading error: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Configuration loading error",
+            )
+                .into_response()
+        }
+    }
 }
