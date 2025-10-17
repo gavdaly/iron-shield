@@ -1,9 +1,0 @@
-# Clippy configuration
-
-# General settings
-warn-unsafe-code = false
-warn-deprecated = true
-
-# Some lints can be configured via this file, but many are better controlled
-# via command line arguments or attributes in the code.
-# The full set of lints is enabled via command line in the Justfile.

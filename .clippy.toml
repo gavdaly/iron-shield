@@ -2,10 +2,4 @@
 # Using correct configuration options available in recent Clippy versions
 
 # Avoid breaking changes to public API
-avoid-breaking-exported-api = false
-
-# Allow certain commonly used practices that might be flagged by pedantic lints
-allow-expect-in-tests = true
-allow-unwrap-in-tests = true
-allow-print-in-tests = true
-allow-dbg-in-tests = true
+avoid-breaking-exported-api = true
