@@ -16,7 +16,7 @@ fmt:
     cargo fmt
 
 clippy:
-    cargo clippy --all-targets --all-features
+    cargo clippy --all-targets --all-features -- -W clippy::all -W clippy::pedantic
 
 check:
     just fmt

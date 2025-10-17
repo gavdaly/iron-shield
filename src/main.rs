@@ -1,3 +1,4 @@
+use std::env;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod config;
@@ -12,10 +13,15 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let port = env::args()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(3000);
+
     tracing::info!("Starting Iron Shield application");
     tracing::debug!("Application initialized with tracing enabled");
 
-    server::run().await;
+    server::run(port).await;
 
     tracing::info!("Iron Shield application shutting down");
 }

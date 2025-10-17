@@ -1,6 +1,5 @@
 use crate::config::Config;
 use askama_axum::Template;
-use tracing;
 
 #[derive(Template)]
 #[template(path = "index.html")]

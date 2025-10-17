@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tracing;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
@@ -17,6 +16,14 @@ pub struct Site {
 }
 
 impl Config {
+    /// Load the application configuration from the config.json5 file.
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if:
+    /// - The config.json5 file cannot be read
+    /// - The config.json5 file does not contain valid JSON5
+    /// - The JSON5 does not match the expected Config structure
     pub fn load() -> Self {
         tracing::debug!("Loading application configuration");
         let config_str = fs::read_to_string("config.json5").expect("Failed to read config.json5");
@@ -36,7 +43,7 @@ pub enum Clock {
 
 impl std::fmt::Display for Clock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Clock::*;
+        use Clock::{Military, Standard};
         match self {
             Military => f.write_str("military"),
             Standard => f.write_str("standard"),
