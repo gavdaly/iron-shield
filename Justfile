@@ -1,4 +1,4 @@
-default: run
+default: check
 
 build:
     cargo build
@@ -11,3 +11,14 @@ test:
 
 clean:
     cargo clean
+
+fmt:
+    cargo fmt
+
+clippy:
+    cargo clippy --all-targets --all-features
+
+check:
+    just fmt
+    just clippy
+    just test
