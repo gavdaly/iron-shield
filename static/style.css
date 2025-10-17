@@ -4,17 +4,44 @@
     box-sizing: border-box;
 }
 
+/* Typography scale system */
+:root {
+    /* Font families */
+    --font-primary:
+        "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, sans-serif;
+    --font-secondary: "Source Serif Pro", serif;
+
+    /* Font sizes */
+    --text-xs: 0.75rem; /* Extra small: tags */
+    --text-sm: 0.875rem; /* Small: supporting text */
+    --text-base: 1rem; /* Base: main body text */
+    --text-lg: 1.125rem; /* Large */
+    --text-xl: 1.25rem; /* Extra large */
+    --text-2xl: 1.5rem; /* 2x large: subheadings */
+    --text-3xl: 1.875rem; /* 3x large */
+    --text-4xl: 2rem; /* 4x large: main headings */
+    --text-5xl: 2.25rem; /* 5x large */
+    --text-6xl: 3rem; /* 6x large */
+    --text-7xl: 4rem; /* 7x large: for large clock display */
+    --text-8xl: 5rem; /* 8x large: for extra large clock display */
+
+    /* Font weights */
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+
+    /* Letter spacing */
+    --letter-spacing-tight: -0.025em;
+    --letter-spacing-normal: 0;
+    --letter-spacing-wide: 0.025em;
+    --letter-spacing-wider: 0.05em;
+    --letter-spacing-widest: 0.1em;
+}
+
 body {
-    font-family:
-        "Inter",
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
-        Roboto,
-        Oxygen,
-        Ubuntu,
-        Cantarell,
-        sans-serif;
+    font-family: var(--font-primary);
     background: linear-gradient(135deg, var(--bg-color-1), var(--bg-color-2));
     color: #e0e0e0;
     min-height: 100vh;
@@ -23,6 +50,9 @@ body {
     align-items: center;
     justify-content: center;
     transition: background 1s ease;
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-normal);
 }
 
 /* Time-of-day background gradients */
@@ -61,9 +91,9 @@ body {
 }
 
 #time {
-    font-size: 5rem;
-    font-weight: 300;
-    letter-spacing: 0.1em;
+    font-size: var(--text-8xl);
+    font-weight: var(--font-weight-light);
+    letter-spacing: var(--letter-spacing-widest);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
@@ -105,6 +135,8 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.1);
     transition: all 0.3s ease;
     min-width: 120px;
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--letter-spacing-normal);
 }
 
 .site a:hover {
@@ -123,9 +155,12 @@ body {
 
 .tag {
     background: rgba(100, 149, 237, 0.3);
-    font-size: 0.75rem;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
     padding: 0.25rem 0.75rem;
     border-radius: 1rem;
     margin: 0.2rem;
     border: 1px solid rgba(100, 149, 237, 0.4);
+    letter-spacing: var(--letter-spacing-wide);
+    text-transform: uppercase;
 }
