@@ -9,9 +9,11 @@ mod server;
 /// Main entry point for the Iron Shield application
 ///
 /// Initializes tracing, parses command line arguments for the port,
-/// starts the web server, and handles application lifecycle
+/// starts the web server, and handles application lifecycle.
+/// The application will listen for Ctrl+C (SIGINT) and SIGTERM signals
+/// to perform a graceful shutdown.
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .with(tracing_subscriber::fmt::layer())
@@ -25,10 +27,8 @@ async fn main() {
     tracing::info!("Starting Iron Shield application");
     tracing::debug!("Application initialized with tracing enabled");
 
-    if let Err(e) = server::run(port).await {
-        eprintln!("Application error: {e}");
-        tracing::error!("Server error: {e}");
-    }
+    server::run(port).await?;
 
     tracing::info!("Iron Shield application shutting down");
+    Ok(())
 }
