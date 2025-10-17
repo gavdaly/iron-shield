@@ -1,17 +1,29 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 
+/// Application configuration structure
+///
+/// Contains all configuration parameters for the Iron Shield dashboard
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
+    /// Name of the site displayed in the page title
     pub site_name: String,
+    /// Clock format to use (24-hour or 12-hour)
     pub clock: Option<Clock>,
+    /// List of bookmarked sites to display
     pub sites: Vec<Site>,
 }
 
+/// Represents a bookmarked website in the dashboard
+///
+/// Contains the essential information for displaying and accessing a bookmarked site
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Site {
+    /// Display name for the site
     pub name: String,
+    /// URL of the site
     pub url: String,
+    /// List of tags for categorization and filtering
     pub tags: Vec<String>,
 }
 
@@ -34,19 +46,33 @@ impl Config {
     }
 }
 
+/// Clock format options
+///
+/// Defines the format in which to display the time on the dashboard
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
 pub enum Clock {
-    Military,
+    /// 24-hour format (e.g., 13:00)
+    TwentyFourHour,
+    /// 12-hour format with AM/PM (e.g., 1:00 PM)
     #[default]
-    Standard,
+    TwelveHour,
 }
 
 impl std::fmt::Display for Clock {
+    /// Formats the Clock enum to its string representation
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - Formatter to write the string to
+    ///
+    /// # Returns
+    ///
+    /// Result of the formatting operation
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Clock::{Military, Standard};
+        use Clock::{TwelveHour, TwentyFourHour};
         match self {
-            Military => f.write_str("military"),
-            Standard => f.write_str("standard"),
+            TwentyFourHour => f.write_str("24hour"),
+            TwelveHour => f.write_str("12hour"),
         }
     }
 }

@@ -5,9 +5,12 @@ mod config;
 mod index;
 mod server;
 
+/// Main entry point for the Iron Shield application
+///
+/// Initializes tracing, parses command line arguments for the port,
+/// starts the web server, and handles application lifecycle
 #[tokio::main]
 async fn main() {
-    // Initialize tracing with env filter
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .with(tracing_subscriber::fmt::layer())
