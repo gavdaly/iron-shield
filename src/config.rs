@@ -4,7 +4,7 @@ use std::fs;
 /// Application configuration structure
 ///
 /// Contains all configuration parameters for the Iron Shield dashboard
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct Config {
     /// Name of the site displayed in the page title
     pub site_name: String,
@@ -68,7 +68,7 @@ impl Config {
 /// Clock format options
 ///
 /// Defines the format in which to display the time on the dashboard
-#[derive(Debug, Default, Deserialize, Serialize, PartialEq)]
+#[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone)]
 pub enum Clock {
     /// 24-hour format (e.g., 13:00)
     TwentyFourHour,

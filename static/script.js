@@ -104,47 +104,6 @@ function updateTimeOfDayBackground(date) {
   }
 }
 
-// Check uptime for all sites
-function checkUptimeForAllSites() {
-  const siteLinks = document.querySelectorAll(".site-card a");
-  siteLinks.forEach((link) => {
-    const url = link.getAttribute("href");
-    const uptimeElement = link.parentElement.querySelector(".uptime");
-
-    // Set initial state as loading
-    uptimeElement.className = "uptime loading";
-    uptimeElement.innerHTML = "<span>•••</span>";
-
-    // Perform a simple fetch to check if the site is reachable
-    // Using a proxy to avoid CORS issues
-    const proxyUrl =
-      "https://api.allorigins.win/raw?url=" + encodeURIComponent(url);
-
-    // Timeout after 5 seconds
-    const timeout = setTimeout(() => {
-      uptimeElement.className = "uptime down";
-      uptimeElement.innerHTML = "<span>●</span> Down";
-    }, 5000);
-
-    fetch(proxyUrl, { method: "HEAD", mode: "cors" })
-      .then((response) => {
-        clearTimeout(timeout);
-        if (response.ok) {
-          uptimeElement.className = "uptime up";
-          uptimeElement.innerHTML = "<span>●</span> Up";
-        } else {
-          uptimeElement.className = "uptime down";
-          uptimeElement.innerHTML = "<span>●</span> Down";
-        }
-      })
-      .catch(() => {
-        clearTimeout(timeout);
-        uptimeElement.className = "uptime down";
-        uptimeElement.innerHTML = "<span>●</span> Down";
-      });
-  });
-}
-
 // Listen for OS theme preference changes
 window
   .matchMedia("(prefers-color-scheme: dark)")
@@ -165,7 +124,52 @@ window.addEventListener("beforeunload", () => {
   clearInterval(clockInterval);
 });
 
-// Initialize uptime checks after DOM is loaded and themes are set
+// Initialize SSE connection for uptime updates
+function initUptimeSSE() {
+  const eventSource = new EventSource("/uptime");
+
+  eventSource.onmessage = function (event) {
+    try {
+      const uptimeData = JSON.parse(event.data);
+
+      uptimeData.forEach(function (uptimeInfo) {
+        // Find the site card that matches this site_id
+        const siteCards = document.querySelectorAll(".site-card");
+        siteCards.forEach(function (card) {
+          const siteLink = card.querySelector("a span");
+          const siteName = siteLink.textContent.trim();
+
+          // Compare site name with the site_id from the SSE data
+          if (siteName === uptimeInfo.site_id) {
+            const uptimeElement = card.querySelector(".uptime");
+            if (uptimeElement) {
+              // Update the uptime element based on status
+              uptimeElement.className = `uptime ${uptimeInfo.status}`;
+
+              // Set the display text with status and uptime percentage
+              let statusText =
+                uptimeInfo.status.charAt(0).toUpperCase() +
+                uptimeInfo.status.slice(1);
+              const uptimePercentage = uptimeInfo.uptime_percentage.toFixed(1);
+
+              // Add status indicator and percentage
+              uptimeElement.innerHTML = `<span>●</span> ${statusText} (${uptimePercentage}%)`;
+            }
+          }
+        });
+      });
+    } catch (error) {
+      console.error("Error processing uptime data:", error);
+    }
+  };
+
+  eventSource.onerror = function (event) {
+    console.error("SSE connection error for uptime:", event);
+    eventSource.close();
+  };
+}
+
+// Initialize uptime SSE after DOM is loaded and themes are set
 document.addEventListener("DOMContentLoaded", () => {
-  setTimeout(checkUptimeForAllSites, 1000); // Wait a bit for theme to be applied
+  initUptimeSSE();
 });

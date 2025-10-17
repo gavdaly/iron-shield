@@ -5,6 +5,7 @@ mod config;
 mod error;
 mod index;
 mod server;
+mod uptime;
 
 /// Main entry point for the Iron Shield application
 ///

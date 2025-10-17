@@ -1,6 +1,9 @@
+use crate::config::Config;
 use crate::error::Result;
 use crate::index::generate_index;
+use crate::uptime::{uptime_stream, UptimeState};
 use axum::{routing::get, Router};
+use std::sync::Arc;
 use tokio::signal;
 use tower_http::services::ServeDir;
 
@@ -22,9 +25,21 @@ use tower_http::services::ServeDir;
 pub async fn run(port: u16) -> Result<()> {
     tracing::info!("Initializing server");
 
+    // Load the configuration
+    let config = Config::load()?;
+
+    // Create uptime state with empty history
+    let history_map = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+    let uptime_state = Arc::new(UptimeState {
+        config: config.clone(),
+        history: history_map,
+    });
+
     let app = Router::new()
         .route("/", get(generate_index))
-        .nest_service("/static", ServeDir::new("static"));
+        .route("/uptime", get(uptime_stream))
+        .nest_service("/static", ServeDir::new("static"))
+        .with_state(uptime_state);
 
     tracing::debug!("Routes configured");
 

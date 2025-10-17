@@ -14,3 +14,6 @@ pub mod index;
 
 /// Server operations module
 pub mod server;
+
+/// Uptime monitoring module
+pub mod uptime;
