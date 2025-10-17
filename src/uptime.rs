@@ -29,7 +29,7 @@ pub struct UptimeHistory {
 
 // Shared state for the uptime service with historical data
 pub struct UptimeState {
-    pub config: Config,
+    pub config: Arc<RwLock<Config>>,
     pub history: Arc<RwLock<HashMap<String, VecDeque<UptimeStatus>>>>,
 }
 
@@ -52,8 +52,9 @@ pub async fn uptime_stream(
 
         // Initialize the history map with loading status for all sites
         {
+            let config_guard = config.read().unwrap();
             let mut history_guard = history_map.write().unwrap();
-            for site in &config.sites {
+            for site in &config_guard.sites {
                 let mut history = VecDeque::new();
                 history.push_back(UptimeStatus::Loading);
                 history_guard.insert(site.name.clone(), history);
@@ -65,7 +66,9 @@ pub async fn uptime_stream(
             debug!("Starting new uptime check cycle");
 
             // Get a copy of the sites to check
-            let sites_to_check = config.sites.clone();
+            let config_guard = config.read().unwrap();
+            let sites_to_check = config_guard.sites.clone();
+            drop(config_guard); // Release the read lock as soon as possible
 
             // Update history to loading state
             {
