@@ -2,17 +2,25 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta viewport="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="stylesheet" href="/static/style.css" />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap"
+            rel="stylesheet"
+        />
         <script src="/static/script.js" async></script>
         <title>{{config.site_name}}</title>
     </head>
 
     <body>
         {% match config.clock %} {% when Clock::TwentyFourHour %}
-        <time id="clock" data-format="24hour"></time>
+        <div id="clock-container">
+            <div id="time" data-format="24hour"></div>
+        </div>
         {% when Clock::TwelveHour %}
-        <time id="clock" data-format="12hour"></time>
+        <div id="clock-container">
+            <div id="time" data-format="12hour"></div>
+        </div>
         {% when Clock::NoClock %} {% endmatch %}
 
         <div id="sites">
