@@ -51,7 +51,7 @@ pub async fn run(port: u16) -> Result<()> {
         match res {
             Ok(event) => {
                 match event.kind {
-                    EventKind::Modify(_) => {
+                    EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
                         for path in event.paths {
                             if path == config_path_for_watcher {
                                 debug!("Configuration file change detected: {:?}", path);
@@ -114,6 +114,8 @@ pub async fn run(port: u16) -> Result<()> {
         .route("/uptime", get(uptime_stream))
         .nest_service("/static", ServeDir::new("static"))
         .with_state(uptime_state);
+
+    std::mem::forget(watcher);
 
     tracing::debug!("Routes configured");
 
