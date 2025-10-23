@@ -195,6 +195,30 @@ body {
     outline-offset: 2px;
 }
 
+/* Focus styles for keyboard navigation */
+#theme-toggle:focus-visible,
+.site a:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+}
+
+/* For browsers that don't support :focus-visible, use regular focus */
+#theme-toggle:focus,
+.site a:focus {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+}
+
+/* Ensure focus is only visible when using keyboard navigation */
+a:not(.focus-visible) {
+    outline: none;
+}
+
+a.focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+}
+
 #clock-container {
     background: var(--color-surface);
     backdrop-filter: blur(10px);
@@ -258,7 +282,8 @@ body {
     letter-spacing: var(--letter-spacing-normal);
 }
 
-.site a:hover {
+.site a:hover,
+.site a:focus {
     background: var(--color-surface-hover);
     transform: translateY(-3px);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);

@@ -124,6 +124,35 @@ window.addEventListener("beforeunload", () => {
   clearInterval(clockInterval);
 });
 
+// Initialize focus-visible polyfill behavior
+function initFocusVisible() {
+  let keyboardActive = true;
+  let mouseActive = false;
+
+  // Detect keyboard vs mouse navigation
+  document.addEventListener("keydown", () => {
+    keyboardActive = true;
+    mouseActive = false;
+  });
+
+  document.addEventListener("mousedown", () => {
+    mouseActive = true;
+    keyboardActive = false;
+  });
+
+  // Add focus-visible class when navigating with keyboard
+  document.addEventListener("focusin", (event) => {
+    if (keyboardActive) {
+      event.target.classList.add("focus-visible");
+    }
+  });
+
+  // Remove focus-visible class when navigating with mouse
+  document.addEventListener("focusout", (event) => {
+    event.target.classList.remove("focus-visible");
+  });
+}
+
 // Initialize SSE connection for uptime updates
 function initUptimeSSE() {
   const eventSource = new EventSource("/uptime");
@@ -169,7 +198,8 @@ function initUptimeSSE() {
   };
 }
 
-// Initialize uptime SSE after DOM is loaded and themes are set
+// Initialize all features after DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
+  initFocusVisible();
   initUptimeSSE();
 });

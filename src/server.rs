@@ -83,25 +83,23 @@ pub async fn run(port: u16) -> Result<()> {
         let mut reload_rx = rx; // Receive channel for config reload signals
         async move {
             loop {
-                // Wait for config reload signal
                 if reload_rx.recv().await.is_some() {
-                    // Attempt to reload the config
                     match Config::load() {
                         Ok(new_config) => {
-                            info!(
-                                "Reloading configuration with {} sites",
-                                new_config.sites.len()
-                            );
+                            let numbe_of_sites = new_config.sites.len();
+                            info!("Reloading configuration with {numbe_of_sites} sites",);
 
-                            // Update the uptime state with the new config
                             {
-                                let mut config_guard = uptime_state.config.write().unwrap();
-                                *config_guard = new_config;
-                                info!("Configuration updated successfully");
+                                if let Ok(mut config_guard) = uptime_state.config.write() {
+                                    *config_guard = new_config;
+                                    info!("Configuration updated successfully");
+                                } else {
+                                    error!("Failed to acquire config write lock");
+                                }
                             }
                         }
                         Err(e) => {
-                            error!("Failed to reload configuration: {}", e);
+                            error!("Failed to reload configuration: {e}");
                         }
                     }
                 }
@@ -144,9 +142,7 @@ async fn shutdown_signal() {
     // Handle Ctrl+C
     let ctrl_c = async {
         if let Err(e) = signal::ctrl_c().await {
-            tracing::error!("Failed to install Ctrl+C handler: {}", e);
-            // This is a critical error, so we panic as the application can't function correctly without shutdown capability
-            panic!("Failed to install Ctrl+C handler: {}", e);
+            tracing::error!("Failed to install Ctrl+C handler: {e}");
         }
     };
 
@@ -157,7 +153,7 @@ async fn shutdown_signal() {
                 terminate_signal.recv().await;
             }
             Err(e) => {
-                tracing::error!("Failed to install SIGTERM handler: {}", e);
+                tracing::error!("Failed to install SIGTERM handler: {e}");
                 // Continue with only Ctrl+C handler if SIGTERM fails
             }
         }
@@ -167,8 +163,8 @@ async fn shutdown_signal() {
     let terminate = std::future::pending::<()>();
 
     tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
+        () = ctrl_c => {},
+        () = terminate => {},
     }
 
     tracing::info!("Received shutdown signal, starting graceful shutdown");

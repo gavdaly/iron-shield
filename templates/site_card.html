@@ -1,6 +1,16 @@
-<div class="site-card">
-    <a href="{{ site.url }}">
+<div class="site-card" role="listitem">
+    <a href="{{ site.url }}" role="link" aria-label="Visit {{ site.name }}">
         <span>{{ site.name }}</span>
+        <div class="tags" role="list" aria-label="Tags for {{ site.name }}">
+            {% for tag in site.tags %}
+            <span class="tag" role="listitem">{{ tag }}</span>
+            {% endfor %}
+        </div>
     </a>
-    <div class="uptime"></div>
+    <div
+        class="uptime"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+    ></div>
 </div>

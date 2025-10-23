@@ -17,19 +17,35 @@
             🌙
         </button>
 
-        {% match config.clock %} {% when Clock::TwentyFourHour %}
-        <div id="clock-container">
-            <div id="time" data-format="24hour"></div>
-        </div>
-        {% when Clock::TwelveHour %}
-        <div id="clock-container">
-            <div id="time" data-format="12hour"></div>
-        </div>
-        {% when Clock::NoClock %} {% endmatch %}
+        {% match config.clock %} {% when Clock::Hour24 %}
+        <header role="banner">
+            <div id="clock-container" aria-label="Current time">
+                <div
+                    id="time"
+                    data-format="24hour"
+                    aria-live="polite"
+                    aria-atomic="true"
+                ></div>
+            </div>
+        </header>
+        {% when Clock::Hour12 %}
+        <header role="banner">
+            <div id="clock-container" aria-label="Current time">
+                <div
+                    id="time"
+                    data-format="12hour"
+                    aria-live="polite"
+                    aria-atomic="true"
+                ></div>
+            </div>
+        </header>
+        {% when Clock::None %} {% endmatch %}
 
-        <div id="sites">
-            {% for site in config.sites %} {% include "site_card.html" %} {%
-            endfor %}
-        </div>
+        <nav role="navigation" aria-label="Site shortcuts">
+            <div id="sites">
+                {% for site in config.sites %} {% include "site_card.html" %} {%
+                endfor %}
+            </div>
+        </nav>
     </body>
 </html>

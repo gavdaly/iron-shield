@@ -49,7 +49,7 @@ impl Config {
             if let Some(obj) = value.as_object_mut() {
                 obj.insert(
                     "clock".to_string(),
-                    serde_json::Value::String("NoClock".to_string()),
+                    serde_json::Value::String("None".to_string()),
                 );
             } else {
                 return Err(crate::error::IronShieldError::Generic(
@@ -71,12 +71,12 @@ impl Config {
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone)]
 pub enum Clock {
     /// 24-hour format (e.g., 13:00)
-    TwentyFourHour,
+    Hour24,
     /// 12-hour format with AM/PM (e.g., 1:00 PM)
-    TwelveHour,
+    Hour12,
     /// No clock displayed
     #[default]
-    NoClock,
+    None,
 }
 
 impl std::fmt::Display for Clock {
@@ -91,9 +91,9 @@ impl std::fmt::Display for Clock {
     /// Result of the formatting operation
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Clock::TwentyFourHour => f.write_str("24hour"),
-            Clock::TwelveHour => f.write_str("12hour"),
-            Clock::NoClock => f.write_str("noclock"),
+            Clock::Hour24 => f.write_str("24hour"),
+            Clock::Hour12 => f.write_str("12hour"),
+            Clock::None => f.write_str("none"),
         }
     }
 }

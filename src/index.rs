@@ -29,7 +29,7 @@ pub async fn generate_index() -> impl IntoResponse {
             match template.render() {
                 Ok(html) => Html(html).into_response(),
                 Err(e) => {
-                    tracing::error!("Template rendering error: {}", e);
+                    tracing::error!("Template rendering error: {e}");
                     (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "Template rendering error",
@@ -39,7 +39,7 @@ pub async fn generate_index() -> impl IntoResponse {
             }
         }
         Err(e) => {
-            tracing::error!("Configuration loading error: {}", e);
+            tracing::error!("Configuration loading error: {e}");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Configuration loading error",

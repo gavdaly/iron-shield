@@ -33,6 +33,8 @@ pub struct UptimeState {
     pub history: Arc<RwLock<HashMap<String, VecDeque<UptimeStatus>>>>,
 }
 
+/// Handles the uptime monitoring stream endpoint
+#[allow(clippy::too_many_lines)]
 pub async fn uptime_stream(
     State(state): State<Arc<UptimeState>>,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<axum::response::sse::Event, Infallible>>> {
@@ -52,12 +54,19 @@ pub async fn uptime_stream(
 
         // Initialize the history map with loading status for all sites
         {
-            let config_guard = config.read().unwrap();
-            let mut history_guard = history_map.write().unwrap();
-            for site in &config_guard.sites {
-                let mut history = VecDeque::new();
-                history.push_back(UptimeStatus::Loading);
-                history_guard.insert(site.name.clone(), history);
+            match (config.read(), history_map.write()) {
+                (Ok(config_guard), Ok(mut history_guard)) => {
+                    for site in &config_guard.sites {
+                        let mut history = VecDeque::new();
+                        history.push_back(UptimeStatus::Loading);
+                        history_guard.insert(site.name.clone(), history);
+                    }
+                }
+                _ => {
+                    error!("Failed to acquire locks for initial history setup");
+                    // Since this is in the initialization phase, we should continue in the main loop
+                    // or just proceed to the first interval tick
+                }
             }
         }
 
@@ -66,13 +75,25 @@ pub async fn uptime_stream(
             debug!("Starting new uptime check cycle");
 
             // Get a copy of the sites to check
-            let config_guard = config.read().unwrap();
+            let config_guard = match config.read() {
+                Ok(guard) => guard,
+                Err(e) => {
+                    error!("Failed to acquire config read lock: {e}");
+                    continue;
+                }
+            };
             let sites_to_check = config_guard.sites.clone();
             drop(config_guard); // Release the read lock as soon as possible
 
             // Update history to loading state
             {
-                let mut history_guard = history_map.write().unwrap();
+                let mut history_guard = match history_map.write() {
+                    Ok(guard) => guard,
+                    Err(e) => {
+                        error!("Failed to acquire history write lock: {e}");
+                        continue;
+                    }
+                };
                 for site in &sites_to_check {
                     let site_history = history_guard
                         .entry(site.name.clone())
@@ -88,36 +109,29 @@ pub async fn uptime_stream(
 
             // Send loading updates
             {
-                let history_guard = history_map.read().unwrap();
+                let history_guard = match history_map.read() {
+                    Ok(guard) => guard,
+                    Err(e) => {
+                        error!("Failed to acquire history read lock: {e}");
+                        continue;
+                    }
+                };
                 let mut uptime_data = Vec::new();
 
                 for site in &sites_to_check {
                     if let Some(site_history) = history_guard.get(&site.name) {
                         if let Some(&current_status) = site_history.back() {
-                            // Calculate uptime percentage
-                            let up_count = site_history
-                                .iter()
-                                .filter(|&&s| s == UptimeStatus::Up)
-                                .count();
-                            let uptime_percentage = if site_history.len() > 0 {
-                                (up_count as f64) / (site_history.len() as f64) * 100.0
-                            } else {
-                                0.0
-                            };
+                            let uptime_percentage = calculate_uptime_percentage(site_history);
+                            let site_name = site.name.clone();
 
-                            debug!("Calculated uptime: site={}, current_status={:?}, up_count={}, total_count={}, percentage={:.2}%",
-                                site.name, current_status, up_count, site_history.len(), uptime_percentage);
+                            debug!("Calculated uptime: site={site_name}, current_status={current_status:?}, percentage={uptime_percentage:.2}%");
 
-                            let data = UptimeHistory {
-                                site_id: site.name.clone(),
-                                status: current_status,
-                                timestamp: std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_secs(),
-                                history: site_history.iter().cloned().collect(),
+                            let data = create_uptime_history(
+                                &site.name,
+                                current_status,
+                                site_history,
                                 uptime_percentage,
-                            };
+                            );
 
                             uptime_data.push(data);
                         }
@@ -139,18 +153,19 @@ pub async fn uptime_stream(
                 let site_name = site.name.clone();
 
                 tokio::spawn(async move {
-                    debug!("Starting uptime check for site: {}", site_name);
+                    debug!("Starting uptime check for site: {site_name}");
 
-                    // Check the site status
                     let status = check_site_status(&client, &url).await;
-                    debug!(
-                        "Uptime check completed for site: {}, status: {:?}",
-                        site_name, status
-                    );
+                    debug!("Uptime check completed for site: {site_name}, status: {status:?}");
 
-                    // Update the history with the actual status
                     {
-                        let mut history_guard = history_map.write().unwrap();
+                        let mut history_guard = match history_map.write() {
+                            Ok(guard) => guard,
+                            Err(e) => {
+                                error!("Failed to acquire history write lock: {e}");
+                                return; // Exit if we can't update history
+                            }
+                        };
                         let site_history = history_guard
                             .entry(site_name.clone())
                             .or_insert_with(VecDeque::new);
@@ -164,37 +179,29 @@ pub async fn uptime_stream(
 
                     // Send the final status update
                     {
-                        let history_guard = history_map.read().unwrap();
+                        let history_guard = match history_map.read() {
+                            Ok(guard) => guard,
+                            Err(e) => {
+                                error!("Failed to acquire history read lock: {e}");
+                                return; // Exit if we can't read history
+                            }
+                        };
                         if let Some(site_history) = history_guard.get(&site_name) {
-                            // Calculate uptime percentage
-                            let up_count = site_history
-                                .iter()
-                                .filter(|&&s| s == UptimeStatus::Up)
-                                .count();
-                            let total_count = site_history.len();
-                            let uptime_percentage = if total_count > 0 {
-                                (up_count as f64) / (total_count as f64) * 100.0
-                            } else {
-                                0.0
-                            };
+                            let uptime_percentage = calculate_uptime_percentage(site_history);
 
-                            debug!("Updated uptime stats: site={}, status={:?}, up_count={}, total_count={}, percentage={:.2}%",
-                                site_name, status, up_count, total_count, uptime_percentage);
+                            debug!(
+                                "Updated uptime stats: site={site_name}, status={status:?}, percentage={uptime_percentage:.2}%"
+                            );
 
-                            let data = UptimeHistory {
-                                site_id: site_name.clone(),
+                            let data = create_uptime_history(
+                                &site_name,
                                 status,
-                                timestamp: std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap()
-                                    .as_secs(),
-                                history: site_history.iter().cloned().collect(),
+                                site_history,
                                 uptime_percentage,
-                            };
+                            );
 
-                            // Send only the update for this specific site
                             if tx.send(vec![data]).is_err() {
-                                error!("Failed to send uptime update for site: {}", site_name);
+                                error!("Failed to send uptime update for site: {site_name}");
                             }
                         }
                     }
@@ -205,21 +212,58 @@ pub async fn uptime_stream(
 
     // Convert the receiving end of the channel into a stream
     let stream = UnboundedReceiverStream::new(rx).map(|uptime_data| {
-        match axum::response::sse::Event::default().json_data(&uptime_data) {
-            Ok(event) => Ok(event),
-            Err(_) => {
-                error!("Failed to serialize uptime data for SSE");
-                Ok(axum::response::sse::Event::default().data("Error"))
-            }
+        if let Ok(event) = axum::response::sse::Event::default().json_data(&uptime_data) {
+            Ok(event)
+        } else {
+            error!("Failed to serialize uptime data for SSE");
+            Ok(axum::response::sse::Event::default().data("Error"))
         }
     });
 
     Sse::new(stream)
 }
 
-// Helper function to check site status
+/// Helper function to calculate uptime percentage
+fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64 {
+    let up_count = site_history
+        .iter()
+        .filter(|&&s| s == UptimeStatus::Up)
+        .count();
+    let total_count = site_history.len();
+    if site_history.is_empty() {
+        0.0
+    } else {
+        // This cast is necessary for percentage calculation and precision loss is acceptable
+        // for our use case (uptime monitoring doesn't require exact precision)
+        #[allow(clippy::cast_precision_loss)]
+        {
+            (up_count as f64) / (total_count as f64) * 100.0
+        }
+    }
+}
+
+/// Helper function to create uptime history data
+fn create_uptime_history(
+    site_name: &str,
+    current_status: UptimeStatus,
+    site_history: &VecDeque<UptimeStatus>,
+    uptime_percentage: f64,
+) -> UptimeHistory {
+    UptimeHistory {
+        site_id: site_name.to_string(),
+        status: current_status,
+        timestamp: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_else(|_| std::time::Duration::from_secs(0))
+            .as_secs(),
+        history: site_history.iter().copied().collect(),
+        uptime_percentage,
+    }
+}
+
+/// Helper function to check site status
 async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus {
-    debug!("Checking site status: {}", url);
+    debug!("Checking site status: {url}");
     match client
         .head(url)
         .timeout(std::time::Duration::from_secs(10))
@@ -229,16 +273,16 @@ async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus 
         Ok(response) => {
             let status = response.status();
             if status.is_success() {
-                debug!("Site {} is UP: status {}", url, status);
+                debug!("Site {url} is UP: status {status}");
                 UptimeStatus::Up
             } else {
-                debug!("Site {} is DOWN: status {}", url, status);
+                debug!("Site {url} is DOWN: status {status}");
                 UptimeStatus::Down
             }
         }
         Err(e) => {
-            debug!("Site {} is DOWN: error {}", url, e);
-            UptimeStatus::Down // If there's an error, consider the site as down
+            debug!("Site {url} is DOWN: error {e}");
+            UptimeStatus::Down
         }
     }
 }
