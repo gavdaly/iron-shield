@@ -183,6 +183,8 @@ body {
     transition: all 0.3s ease;
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
+    min-width: 44px; /* Meet tap target guidelines */
+    min-height: 44px; /* Meet tap target guidelines */
 }
 
 #theme-toggle:hover {
@@ -231,6 +233,7 @@ a.focus-visible {
     max-width: 90%;
     width: 400px;
     margin: 1rem auto;
+    min-height: 44px; /* Meet tap target guidelines */
 }
 
 #time {
@@ -261,6 +264,8 @@ a.focus-visible {
     display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
+    max-width: 200px;
 }
 
 .site a {
@@ -270,7 +275,7 @@ a.focus-visible {
     text-align: center;
     text-decoration: none;
     color: inherit;
-    padding: 0.75rem 1.5rem;
+    padding: 1rem 1.5rem;
     border-radius: 50px;
     background: var(--color-surface);
     backdrop-filter: blur(5px);
@@ -280,6 +285,136 @@ a.focus-visible {
     min-width: 120px;
     font-weight: var(--font-weight-medium);
     letter-spacing: var(--letter-spacing-normal);
+    min-height: 44px; /* Meet tap target guidelines */
+    justify-content: center;
+}
+
+.site-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.uptime {
+    margin-top: 0.5rem;
+    font-size: var(--text-xs);
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    display: inline-block;
+}
+
+.uptime.up {
+    background: var(--color-success-bg);
+    color: var(--color-success);
+}
+
+.uptime.down {
+    background: var(--color-error-bg);
+    color: var(--color-error);
+}
+
+.uptime.unknown {
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
+}
+
+/* Add responsive breakpoints */
+@media (max-width: 1200px) {
+    #sites {
+        max-width: 1000px;
+        gap: 0.8rem;
+    }
+
+    .site {
+        max-width: 180px;
+    }
+}
+
+@media (max-width: 992px) {
+    #sites {
+        max-width: 800px;
+        gap: 0.7rem;
+    }
+
+    #clock-container {
+        width: 350px;
+        padding: 1.5rem;
+    }
+
+    #time {
+        font-size: var(--text-7xl);
+    }
+
+    .site {
+        max-width: 160px;
+    }
+}
+
+@media (max-width: 768px) {
+    #sites {
+        max-width: 600px;
+        gap: 0.6rem;
+    }
+
+    #clock-container {
+        width: 300px;
+        padding: 1.25rem;
+    }
+
+    #time {
+        font-size: var(--text-6xl);
+    }
+
+    .site {
+        max-width: 140px;
+    }
+
+    .site a {
+        padding: 0.8rem 1.2rem;
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 480px) {
+    #sites {
+        max-width: 95%;
+        gap: 0.5rem;
+    }
+
+    #clock-container {
+        width: 90%;
+        padding: 1rem;
+    }
+
+    #time {
+        font-size: var(--text-5xl);
+    }
+
+    .site {
+        max-width: 100%;
+    }
+
+    .site a {
+        width: 100%;
+        max-width: 200px;
+        padding: 1rem;
+        min-height: 44px;
+    }
+
+    #search {
+        width: 95%;
+        margin: 1.5rem 0;
+    }
+
+    #theme-toggle {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1rem;
+    }
 }
 
 .site a:hover,
@@ -308,4 +443,5 @@ a.focus-visible {
     border: 1px solid var(--color-accent-primary);
     letter-spacing: var(--letter-spacing-wide);
     text-transform: uppercase;
+    min-height: 22px; /* Ensure adequate touch target area */
 }
