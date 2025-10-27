@@ -1,14 +1,12 @@
-use crate::config::Config;
+use crate::config::ConfigWatcher;
 use crate::error::Result;
 use crate::index::generate_index;
 use crate::uptime::{uptime_stream, UptimeState};
 use axum::{routing::get, Router};
-use notify::{recommended_watcher, Event, EventKind, RecursiveMode, Watcher};
 use std::sync::Arc;
 use tokio::signal;
-use tokio::sync::mpsc;
 use tower_http::services::ServeDir;
-use tracing::{debug, error, info};
+use tracing::info;
 
 /// Run the web server on the specified port.
 ///
@@ -28,83 +26,18 @@ use tracing::{debug, error, info};
 pub async fn run(port: u16) -> Result<()> {
     tracing::info!("Initializing server");
 
-    // Load the initial configuration
-    let config = Config::load()?;
-    info!("Configuration loaded successfully");
+    // Create the config watcher which handles loading and watching the config file
+    let config_path = std::path::Path::new("config.json5").to_path_buf();
+    let config_watcher = ConfigWatcher::new(&config_path)?;
+    let config_rwlock = config_watcher.get_config(); // Get the Arc<RwLock<Config>>
 
-    // Create uptime state with the config wrapped in RwLock
-    let config_rwlock = Arc::new(std::sync::RwLock::new(config));
+    info!("Configuration loaded and watcher initialized successfully");
+
+    // Create uptime state with the config from ConfigWatcher
     let history_map = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
     let uptime_state = Arc::new(UptimeState {
         config: config_rwlock,
         history: history_map,
-    });
-
-    // Set up file watcher for config changes
-    let (tx, rx) = mpsc::unbounded_channel();
-    let watcher_state = uptime_state.clone(); // Clone for the watcher
-    let config_path = std::path::Path::new("config.json5").to_path_buf();
-    let config_path_for_watcher = config_path.clone(); // Clone for the watcher closure
-
-    // Create the file watcher - use full std::result::Result to avoid type conflict
-    let mut watcher = recommended_watcher(move |res: std::result::Result<Event, notify::Error>| {
-        match res {
-            Ok(event) => {
-                match event.kind {
-                    EventKind::Modify(_) | EventKind::Create(_) | EventKind::Remove(_) => {
-                        for path in event.paths {
-                            if path == config_path_for_watcher {
-                                debug!("Configuration file change detected: {:?}", path);
-                                if tx.send(()).is_err() {
-                                    error!("Failed to send config reload signal");
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    _ => {} // Ignore other event types
-                }
-            }
-            Err(e) => error!("Watch error: {:?}", e),
-        }
-    })
-    .map_err(|e| crate::error::IronShieldError::Generic(e.to_string()))?;
-
-    // Add the config file to the watcher
-    watcher
-        .watch(&config_path, RecursiveMode::NonRecursive)
-        .map_err(|e| crate::error::IronShieldError::Generic(e.to_string()))?;
-
-    info!("Started config file watcher for: {:?}", config_path);
-
-    // Spawn a task to handle config reloads
-    tokio::spawn({
-        let uptime_state = watcher_state;
-        let mut reload_rx = rx; // Receive channel for config reload signals
-        async move {
-            loop {
-                if reload_rx.recv().await.is_some() {
-                    match Config::load() {
-                        Ok(new_config) => {
-                            let numbe_of_sites = new_config.sites.len();
-                            info!("Reloading configuration with {numbe_of_sites} sites",);
-
-                            {
-                                if let Ok(mut config_guard) = uptime_state.config.write() {
-                                    *config_guard = new_config;
-                                    info!("Configuration updated successfully");
-                                } else {
-                                    error!("Failed to acquire config write lock");
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!("Failed to reload configuration: {e}");
-                        }
-                    }
-                }
-            }
-        }
     });
 
     let app = Router::new()
@@ -112,8 +45,6 @@ pub async fn run(port: u16) -> Result<()> {
         .route("/uptime", get(uptime_stream))
         .nest_service("/static", ServeDir::new("static"))
         .with_state(uptime_state);
-
-    std::mem::forget(watcher);
 
     tracing::debug!("Routes configured");
 

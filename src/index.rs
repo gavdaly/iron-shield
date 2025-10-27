@@ -1,9 +1,12 @@
-use crate::config::{Clock, Config};
+use crate::config::Clock;
+use crate::uptime::UptimeState;
 use askama_axum::Template;
 use axum::{
+    extract::State,
     http::StatusCode,
     response::{Html, IntoResponse},
 };
+use std::sync::Arc;
 
 /// Template structure for the index page
 ///
@@ -12,7 +15,7 @@ use axum::{
 #[template(path = "index.html")]
 pub struct IndexTemplate {
     /// Configuration data for the dashboard
-    config: Config,
+    config: crate::config::Config,
 }
 
 /// Generates the index template with loaded configuration
@@ -20,11 +23,14 @@ pub struct IndexTemplate {
 /// # Returns
 ///
 /// An HTML response with the index template or an error response
-pub async fn generate_index() -> impl IntoResponse {
+pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoResponse {
     tracing::debug!("Generating index template");
 
-    match Config::load() {
-        Ok(config) => {
+    // Get the config from the shared state
+    match state.config.read() {
+        Ok(config_guard) => {
+            let config = config_guard.clone(); // Clone the config to avoid holding the lock
+            drop(config_guard); // Explicitly drop the lock as soon as possible
             let template = IndexTemplate { config };
             match template.render() {
                 Ok(html) => Html(html).into_response(),
@@ -39,10 +45,10 @@ pub async fn generate_index() -> impl IntoResponse {
             }
         }
         Err(e) => {
-            tracing::error!("Configuration loading error: {e}");
+            tracing::error!("Configuration read lock error: {e}");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Configuration loading error",
+                "Configuration read lock error",
             )
                 .into_response()
         }

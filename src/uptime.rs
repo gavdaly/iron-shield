@@ -1,6 +1,5 @@
 use crate::config::Config;
 use axum::{extract::State, response::Sse};
-use reqwest;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
