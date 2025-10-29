@@ -190,6 +190,38 @@ body {
     --bg-color-2: #1bcedf;
 }
 
+body {
+    font-family: var(--font-primary);
+    background:
+        linear-gradient(
+                135deg,
+                var(--bg-color-1, #1a1a1a),
+                var(--bg-color-2, #1a1a1a)
+            )
+            0 0,
+        var(--color-bg-primary) 0 0,
+        radial-gradient(
+                ellipse at 50% 70%,
+                rgba(128, 128, 128, 0.07) 0%,
+                transparent 70%
+            )
+            0 0;
+    background-size:
+        100% 100%,
+        100% 100%,
+        800px 800px;
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: background 1s ease;
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--letter-spacing-normal);
+}
+
 #theme-toggle {
     position: absolute;
     top: 1rem;
@@ -265,9 +297,10 @@ a.focus-visible {
 
 #time {
     font-size: var(--text-8xl);
-    font-weight: var(--font-weight-light);
+    font-weight: var(--font-weight-semibold);
     letter-spacing: var(--letter-spacing-widest);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    color: white;
 }
 
 #search {

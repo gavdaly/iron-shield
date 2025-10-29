@@ -67,7 +67,8 @@ function updateTimeAndBackground(timeElement, data) {
   if (data === "12hour") {
     let displayHours = hours % 12;
     if (displayHours === 0) displayHours = 12;
-    timeElement.innerText = `${displayHours}:${minutes}`;
+    let ampm = hours >= 12 ? "PM" : "AM";
+    timeElement.innerText = `${displayHours}:${minutes} ${ampm}`;
   } else {
     timeElement.innerText = `${hours}:${minutes}`;
   }
