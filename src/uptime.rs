@@ -45,29 +45,34 @@ pub async fn uptime_stream(
     // Create a channel to send updates from the checker task
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
+    {
+        if let Ok(config_guard) = config.read() {
+            let sites_to_initialize = config_guard.sites.clone();
+            drop(config_guard); // Release the read lock immediately
+
+            for site in &sites_to_initialize {
+                if let Ok(mut history_guard) = history_map.write() {
+                    let mut history = VecDeque::new();
+                    // Start with Loading status as before
+                    history.push_back(UptimeStatus::Loading);
+                    history_guard.insert(site.name.clone(), history);
+                } else {
+                    error!(
+                        "Failed to acquire history write lock for initialization of site: {}",
+                        site.name
+                    );
+                }
+            }
+        } else {
+            error!("Failed to acquire config read lock for initial history setup");
+        }
+    }
+
     // Spawn a task to periodically check sites and send updates
     tokio::spawn(async move {
         info!("Starting uptime monitoring service");
 
         let mut interval = tokio::time::interval(Duration::from_secs(5));
-
-        // Initialize the history map with loading status for all sites
-        {
-            match (config.read(), history_map.write()) {
-                (Ok(config_guard), Ok(mut history_guard)) => {
-                    for site in &config_guard.sites {
-                        let mut history = VecDeque::new();
-                        history.push_back(UptimeStatus::Loading);
-                        history_guard.insert(site.name.clone(), history);
-                    }
-                }
-                _ => {
-                    error!("Failed to acquire locks for initial history setup");
-                    // Since this is in the initialization phase, we should continue in the main loop
-                    // or just proceed to the first interval tick
-                }
-            }
-        }
 
         loop {
             interval.tick().await;
@@ -223,20 +228,25 @@ pub async fn uptime_stream(
 }
 
 /// Helper function to calculate uptime percentage
+/// Excludes Loading status from the calculation to avoid artificially reducing the percentage
 fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64 {
     let up_count = site_history
         .iter()
         .filter(|&&s| s == UptimeStatus::Up)
         .count();
-    let total_count = site_history.len();
-    if site_history.is_empty() {
+    let count_excluding_loading = site_history
+        .iter()
+        .filter(|&&s| s != UptimeStatus::Loading)
+        .count();
+
+    if count_excluding_loading == 0 {
         0.0
     } else {
         // This cast is necessary for percentage calculation and precision loss is acceptable
         // for our use case (uptime monitoring doesn't require exact precision)
         #[allow(clippy::cast_precision_loss)]
         {
-            (up_count as f64) / (total_count as f64) * 100.0
+            (up_count as f64) / (count_excluding_loading as f64) * 100.0
         }
     }
 }
@@ -281,6 +291,32 @@ async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus 
         }
         Err(e) => {
             debug!("Site {url} is DOWN: error {e}");
+            UptimeStatus::Down
+        }
+    }
+}
+
+/// Helper function to check initial site status
+async fn check_initial_status(client: &reqwest::Client, url: &str) -> UptimeStatus {
+    debug!("Checking initial site status: {url}");
+    match client
+        .get(url) // Use GET instead of HEAD for initial check to be more thorough
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let status = response.status();
+            if status.is_success() {
+                debug!("Initial check: Site {url} is UP: status {status}");
+                UptimeStatus::Up
+            } else {
+                debug!("Initial check: Site {url} is DOWN: status {status}");
+                UptimeStatus::Down
+            }
+        }
+        Err(e) => {
+            debug!("Initial check: Site {url} is DOWN: error {e}");
             UptimeStatus::Down
         }
     }
