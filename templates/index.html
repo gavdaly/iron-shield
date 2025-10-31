@@ -13,10 +13,6 @@
     </head>
 
     <body>
-        <button id="theme-toggle" aria-label="Toggle dark/light mode">
-            🌙
-        </button>
-
         {% match config.clock %} {% when Clock::Hour24 %}
         <header role="banner">
             <div id="clock-container" aria-label="Current time">

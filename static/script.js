@@ -1,57 +1,15 @@
 let clockInterval;
 
 document.addEventListener("DOMContentLoaded", () => {
-  initializeTheme();
   setClock();
-  setupThemeToggle();
+  initUptimeSSE();
 });
-
-function initializeTheme() {
-  // Check for saved theme preference or respect OS preference
-  const savedTheme = localStorage.getItem("theme");
-  const osPrefersDark = window.matchMedia(
-    "(prefers-color-scheme: dark)",
-  ).matches;
-
-  // Set the theme based on preference
-  if (savedTheme === "light" || (!savedTheme && !osPrefersDark)) {
-    document.body.classList.add("light-theme");
-    updateThemeToggleIcon(true); // Light theme
-  } else {
-    document.body.classList.remove("light-theme");
-    updateThemeToggleIcon(false); // Dark theme
-  }
-}
-
-function setupThemeToggle() {
-  const themeToggle = document.getElementById("theme-toggle");
-
-  themeToggle.addEventListener("click", () => {
-    document.body.classList.toggle("light-theme");
-
-    // Save the preference
-    const isLightTheme = document.body.classList.contains("light-theme");
-    localStorage.setItem("theme", isLightTheme ? "light" : "dark");
-
-    // Update icon
-    updateThemeToggleIcon(isLightTheme);
-  });
-}
-
-function updateThemeToggleIcon(isLightTheme) {
-  const themeToggle = document.getElementById("theme-toggle");
-  themeToggle.innerHTML = isLightTheme ? "🌙" : "☀️";
-}
 
 function setClock() {
   let timeElement = document.getElementById("time");
   if (timeElement) {
     let data = timeElement.dataset.format;
-
-    // Immediately update the time
     updateTimeAndBackground(timeElement, data);
-
-    // Then update every second
     clockInterval = setInterval(() => {
       updateTimeAndBackground(timeElement, data);
     }, 1000);
@@ -81,78 +39,20 @@ function updateTimeOfDayBackground(date) {
   const body = document.body;
   const hour = date.getHours();
 
-  // Remove existing time classes
-  body.classList.remove(
-    "time-morning",
-    "time-afternoon",
-    "time-evening",
-    "time-night",
-  );
-
-  // Add appropriate class based on time of day
   if (hour >= 5 && hour < 12) {
-    // Morning: 5am - 12pm
-    body.classList.add("time-morning");
+    body.setAttribute("data-time", "morning");
   } else if (hour >= 12 && hour < 17) {
-    // Afternoon: 12pm - 5pm
-    body.classList.add("time-afternoon");
+    body.setAttribute("data-time", "afternoon");
   } else if (hour >= 17 && hour < 21) {
-    // Evening: 5pm - 9pm
-    body.classList.add("time-evening");
+    body.setAttribute("data-time", "evening");
   } else {
-    // Night: 9pm - 5am
-    body.classList.add("time-night");
+    body.setAttribute("data-time", "night");
   }
 }
-
-// Listen for OS theme preference changes
-window
-  .matchMedia("(prefers-color-scheme: dark)")
-  .addEventListener("change", (e) => {
-    // Only update if user hasn't manually set a preference
-    if (!localStorage.getItem("theme")) {
-      if (e.matches) {
-        document.body.classList.remove("light-theme");
-        updateThemeToggleIcon(false);
-      } else {
-        document.body.classList.add("light-theme");
-        updateThemeToggleIcon(true);
-      }
-    }
-  });
 
 window.addEventListener("beforeunload", () => {
   clearInterval(clockInterval);
 });
-
-// Initialize focus-visible polyfill behavior
-function initFocusVisible() {
-  let keyboardActive = true;
-  let mouseActive = false;
-
-  // Detect keyboard vs mouse navigation
-  document.addEventListener("keydown", () => {
-    keyboardActive = true;
-    mouseActive = false;
-  });
-
-  document.addEventListener("mousedown", () => {
-    mouseActive = true;
-    keyboardActive = false;
-  });
-
-  // Add focus-visible class when navigating with keyboard
-  document.addEventListener("focusin", (event) => {
-    if (keyboardActive) {
-      event.target.classList.add("focus-visible");
-    }
-  });
-
-  // Remove focus-visible class when navigating with mouse
-  document.addEventListener("focusout", (event) => {
-    event.target.classList.remove("focus-visible");
-  });
-}
 
 // Initialize SSE connection for uptime updates
 function initUptimeSSE() {
@@ -198,9 +98,3 @@ function initUptimeSSE() {
     eventSource.close();
   };
 }
-
-// Initialize all features after DOM is loaded
-document.addEventListener("DOMContentLoaded", () => {
-  initFocusVisible();
-  initUptimeSSE();
-});

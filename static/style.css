@@ -65,25 +65,6 @@
     --transition-transform: transform 0.3s ease;
     --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    /* Light theme color system (default values will be overridden in .light-theme) */
-    --color-light-bg-primary: #ffffff;
-    --color-light-bg-secondary: #f5f5f7;
-    --color-light-bg-tertiary: #e0e0e0;
-    --color-light-text-primary: #1c1c1e;
-    --color-light-text-secondary: #4c4c4d;
-    --color-light-text-tertiary: #868688;
-    --color-light-accent-primary: #007aff;
-    --color-light-accent-secondary: #5856d6;
-    --color-light-success: #34c759;
-    --color-light-success-bg: #e3f1e8;
-    --color-light-warning: #ff9500;
-    --color-light-warning-bg: #fae8d0;
-    --color-light-error: #ff3b30;
-    --color-light-error-bg: #fae0e0;
-    --color-light-border: #d2d2d7;
-    --color-light-surface: rgba(0, 0, 0, 0.05);
-    --color-light-surface-hover: rgba(0, 0, 0, 0.1);
-    --color-light-overlay: rgba(0, 0, 0, 0.3);
 }
 
 @keyframes fadeIn {
@@ -99,15 +80,7 @@
 
 body {
     font-family: var(--font-primary);
-    background:
-        linear-gradient(135deg, var(--bg-color-1), var(--bg-color-2)) 0 0,
-        var(--color-bg-primary) 0 0,
-        radial-gradient(
-                ellipse at 50% 70%,
-                rgba(128, 128, 128, 0.07) 0%,
-                transparent 70%
-            )
-            0 0;
+    background: var(--bg-color-1);
     background-size:
         100% 100%,
         100% 100%,
@@ -132,60 +105,23 @@ body {
     animation: fadeIn 0.8s ease-out 0.2s forwards;
 }
 
-/* Light theme overrides */
-.light-theme {
-    --color-bg-primary: var(--color-light-bg-primary);
-    --color-bg-secondary: var(--color-light-bg-secondary);
-    --color-bg-tertiary: var(--color-light-bg-tertiary);
-    --color-text-primary: var(--color-light-text-primary);
-    --color-text-secondary: var(--color-light-text-secondary);
-    --color-text-tertiary: var(--color-light-text-tertiary);
-    --color-accent-primary: var(--color-light-accent-primary);
-    --color-accent-secondary: var(--color-light-accent-secondary);
-    --color-success: var(--color-light-success);
-    --color-success-bg: var(--color-light-success-bg);
-    --color-warning: var(--color-light-warning);
-    --color-warning-bg: var(--color-light-warning-bg);
-    --color-error: var(--color-light-error);
-    --color-error-bg: var(--color-light-error-bg);
-    --color-border: var(--color-light-border);
-    --color-surface: var(--color-light-surface);
-    --color-surface-hover: var(--color-light-surface-hover);
-    --color-overlay: var(--color-light-overlay);
-}
-
-/* Enhanced light theme background with time-of-day gradients disabled */
-.light-theme {
-    background:
-        var(--color-bg-primary),
-        radial-gradient(
-                ellipse at 50% 70%,
-                rgba(128, 128, 128, 0.03) 0%,
-                transparent 70%
-            )
-            0 0;
-    background-size:
-        100% 100%,
-        800px 800px;
-}
-
 /* Time-of-day background gradients */
-.time-morning {
+[data-time="morning"] {
     --bg-color-1: #3a7bd5;
     --bg-color-2: #00d2ff;
 }
 
-.time-afternoon {
+[data-time="afternoon"] {
     --bg-color-1: #56ab2f;
     --bg-color-2: #a8e063;
 }
 
-.time-evening {
+[data-time="evening"] {
     --bg-color-1: #ff7e5f;
     --bg-color-2: #feb47b;
 }
 
-.time-night {
+[data-time="night"] {
     --bg-color-1: #5b247a;
     --bg-color-2: #1bcedf;
 }

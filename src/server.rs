@@ -44,7 +44,7 @@ pub async fn run(port: u16) -> Result<()> {
         .route("/", get(generate_index))
         .route("/uptime", get(uptime_stream))
         .nest_service("/static", ServeDir::new("static"))
-        .with_state(uptime_state);
+        .with_state(uptime_state.clone());
 
     tracing::debug!("Routes configured");
 

@@ -295,29 +295,3 @@ async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus 
         }
     }
 }
-
-/// Helper function to check initial site status
-async fn check_initial_status(client: &reqwest::Client, url: &str) -> UptimeStatus {
-    debug!("Checking initial site status: {url}");
-    match client
-        .get(url) // Use GET instead of HEAD for initial check to be more thorough
-        .timeout(std::time::Duration::from_secs(10))
-        .send()
-        .await
-    {
-        Ok(response) => {
-            let status = response.status();
-            if status.is_success() {
-                debug!("Initial check: Site {url} is UP: status {status}");
-                UptimeStatus::Up
-            } else {
-                debug!("Initial check: Site {url} is DOWN: status {status}");
-                UptimeStatus::Down
-            }
-        }
-        Err(e) => {
-            debug!("Initial check: Site {url} is DOWN: error {e}");
-            UptimeStatus::Down
-        }
-    }
-}
