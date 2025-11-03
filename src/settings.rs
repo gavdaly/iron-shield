@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::Arc;
 use tracing::{error, info};
+use url::Url;
 
 // Template structure for the settings page
 #[derive(Template)]
@@ -84,6 +85,11 @@ impl ConfigUpdate {
             }
             if site.url.trim().is_empty() {
                 return Err(crate::error::IronShieldError::from("Site URL cannot be empty"));
+            }
+            
+            // Validate URL format
+            if let Err(_) = Url::parse(&site.url) {
+                return Err(crate::error::IronShieldError::from(format!("Invalid URL format: {}", site.url)));
             }
         }
 

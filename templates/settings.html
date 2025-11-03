@@ -154,6 +154,9 @@
             
             <h1>Configuration Settings</h1>
             
+            <!-- Notification area -->
+            <div id="notification-area" style="display: none; margin-bottom: 1rem; padding: 0.75rem; border-radius: 8px; text-align: center;"></div>
+            
             <!-- Global Settings -->
             <div class="global-settings">
                 <h2 class="section-title">Global Settings</h2>
@@ -178,14 +181,14 @@
                 
                 <div class="form-group">
                     <label>Add New Site</label>
-                    <input type="text" id="new-site-name" placeholder="Site Name" />
-                    <input type="text" id="new-site-url" placeholder="https://example.com" style="margin-top: 0.5rem;" />
+                    <input type="text" id="new-site-name" placeholder="Site Name" oninput="validateNewSiteName()" />
+                    <input type="text" id="new-site-url" placeholder="https://example.com" style="margin-top: 0.5rem;" oninput="validateNewSiteUrl()" />
                     <input type="text" id="new-site-category" placeholder="Category (e.g., Work, Personal)" style="margin-top: 0.5rem;" />
                     
                     <!-- New site tags input -->
                     <div class="tag-input-form" style="margin-top: 0.5rem;">
                         <input type="text" id="new-site-tags" placeholder="Tags (comma separated)" />
-                        <button class="btn add-tag-btn" onclick="addNewSite()">Add Site</button>
+                        <button class="btn add-tag-btn" id="add-site-btn" onclick="addNewSite()">Add Site</button>
                     </div>
                 </div>
                 
@@ -194,12 +197,12 @@
                     <div class="site-item" data-site-index="{{loop.index0}}">
                         <div class="form-group">
                             <label>Site Name</label>
-                            <input type="text" class="site-name" value="{{site.name}}" placeholder="Site Name" oninput="updateSiteName({{loop.index0}}, this.value)" />
+                            <input type="text" class="site-name" value="{{site.name}}" placeholder="Site Name" oninput="updateSiteName({{loop.index0}}, this.value)" onblur="validateSiteNameOnBlur({{loop.index0}})" />
                         </div>
                         
                         <div class="form-group">
                             <label>URL</label>
-                            <input type="text" class="site-url" value="{{site.url}}" placeholder="https://example.com" oninput="updateSiteUrl({{loop.index0}}, this.value)" />
+                            <input type="text" class="site-url" value="{{site.url}}" placeholder="https://example.com" oninput="updateSiteUrl({{loop.index0}}, this.value)" onblur="validateSiteUrlOnBlur({{loop.index0}})" />
                         </div>
                         
                         <div class="form-group">
@@ -419,17 +422,147 @@
 
             function updateSiteName(siteIndex, value) {
                 configData.sites[siteIndex].name = value;
+                
+                // Real-time validation for site name
+                const nameInput = document.querySelectorAll('.site-name')[siteIndex];
+                if (value.trim() === '') {
+                    nameInput.style.borderColor = 'var(--color-error)';
+                    nameInput.title = 'Site name cannot be empty';
+                } else {
+                    nameInput.style.borderColor = 'var(--color-border)';
+                    nameInput.title = '';
+                }
             }
 
             function updateSiteUrl(siteIndex, value) {
                 configData.sites[siteIndex].url = value;
+                
+                // Real-time validation for URL
+                const urlInput = document.querySelectorAll('.site-url')[siteIndex];
+                const isValidUrl = isValidURL(value);
+                
+                if (value.trim() === '') {
+                    urlInput.style.borderColor = 'var(--color-error)';
+                    urlInput.title = 'URL cannot be empty';
+                } else if (!isValidUrl) {
+                    urlInput.style.borderColor = 'var(--color-error)';
+                    urlInput.title = 'Please enter a valid URL (e.g., https://example.com)';
+                } else {
+                    urlInput.style.borderColor = 'var(--color-border)';
+                    urlInput.title = '';
+                }
             }
 
             function updateSiteCategory(siteIndex, value) {
                 configData.sites[siteIndex].category = value;
             }
+            
+            // Function to validate URL format
+            function isValidURL(string) {
+                try {
+                    const url = new URL(string);
+                    return ['http:', 'https:'].includes(url.protocol);
+                } catch (e) {
+                    return false;
+                }
+            }
+            
+            // Validate new site name input
+            function validateNewSiteName() {
+                const nameInput = document.getElementById('new-site-name');
+                const nameValue = nameInput.value.trim();
+                
+                if (nameValue === '') {
+                    nameInput.style.borderColor = 'var(--color-error)';
+                    nameInput.title = 'Site name cannot be empty';
+                    return false;
+                } else {
+                    nameInput.style.borderColor = 'var(--color-border)';
+                    nameInput.title = '';
+                    return true;
+                }
+            }
+            
+            // Validate new site URL input
+            function validateNewSiteUrl() {
+                const urlInput = document.getElementById('new-site-url');
+                const urlValue = urlInput.value.trim();
+                
+                if (urlValue === '') {
+                    urlInput.style.borderColor = 'var(--color-error)';
+                    urlInput.title = 'URL cannot be empty';
+                    return false;
+                } else if (!isValidURL(urlValue)) {
+                    urlInput.style.borderColor = 'var(--color-error)';
+                    urlInput.title = 'Please enter a valid URL (e.g., https://example.com)';
+                    return false;
+                } else {
+                    urlInput.style.borderColor = 'var(--color-border)';
+                    urlInput.title = '';
+                    return true;
+                }
+            }
+            
+            // Validate site name when user finishes typing
+            function validateSiteNameOnBlur(siteIndex) {
+                const nameInput = document.querySelectorAll('.site-name')[siteIndex];
+                const value = nameInput.value.trim();
+                
+                if (value === '') {
+                    nameInput.style.borderColor = 'var(--color-error)';
+                    nameInput.title = 'Site name cannot be empty';
+                    return false;
+                } else {
+                    nameInput.style.borderColor = 'var(--color-border)';
+                    nameInput.title = '';
+                    return true;
+                }
+            }
+            
+            // Validate site URL when user finishes typing
+            function validateSiteUrlOnBlur(siteIndex) {
+                const urlInput = document.querySelectorAll('.site-url')[siteIndex];
+                const value = urlInput.value.trim();
+                
+                if (value === '') {
+                    urlInput.style.borderColor = 'var(--color-error)';
+                    urlInput.title = 'URL cannot be empty';
+                    return false;
+                } else if (!isValidURL(value)) {
+                    urlInput.style.borderColor = 'var(--color-error)';
+                    urlInput.title = 'Please enter a valid URL (e.g., https://example.com)';
+                    return false;
+                } else {
+                    urlInput.style.borderColor = 'var(--color-border)';
+                    urlInput.title = '';
+                    return true;
+                }
+            }
+            
+            // Show notification function
+            function showNotification(message, type) {
+                const notificationArea = document.getElementById('notification-area');
+                notificationArea.textContent = message;
+                notificationArea.className = type === 'error' ? 'notification-error' : 'notification-success';
+                notificationArea.style.display = 'block';
+                
+                // Auto-hide success notifications after 5 seconds
+                if (type === 'success') {
+                    setTimeout(() => {
+                        notificationArea.style.display = 'none';
+                    }, 5000);
+                }
+            }
+            
+            // Hide notification
+            function hideNotification() {
+                document.getElementById('notification-area').style.display = 'none';
+            }
 
             function saveSettings() {
+                // Hide any previous notifications
+                hideNotification();
+                
                 // Update global settings
                 configData.site_name = document.getElementById('site-name').value;
                 configData.clock = document.getElementById('clock-format').value;
@@ -447,6 +580,24 @@
                     }
                 });
                 
+                // Basic validation before sending to server
+                const invalidSites = [];
+                configData.sites.forEach((site, index) => {
+                    if (!site.name.trim()) {
+                        invalidSites.push(`Site ${index + 1}: Name is required`);
+                    }
+                    if (!site.url.trim()) {
+                        invalidSites.push(`Site ${index + 1}: URL is required`);
+                    } else if (!isValidURL(site.url)) {
+                        invalidSites.push(`Site ${index + 1}: Invalid URL format for ${site.url}`);
+                    }
+                });
+                
+                if (invalidSites.length > 0) {
+                    showNotification(`Validation errors:\n${invalidSites.join('\n')}`, 'error');
+                    return;
+                }
+                
                 // Send data to backend
                 fetch('/api/config', {
                     method: 'POST',
@@ -457,15 +608,20 @@
                 })
                 .then(response => {
                     if (response.ok) {
-                        alert('Settings saved successfully!');
-                        window.location.href = '/';
+                        showNotification('Settings saved successfully!', 'success');
+                        // Redirect after a short delay to allow user to see the success message
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 1500);
                     } else {
-                        alert('Error saving settings');
+                        return response.text().then(text => {
+                            showNotification(`Error saving settings: ${text}`, 'error');
+                        });
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error saving settings');
+                    showNotification(`Error saving settings: ${error.message}`, 'error');
                 });
             }
 
@@ -494,6 +650,18 @@
             
             .remove-btn:hover {
                 background: none;
+            }
+            
+            .notification-success {
+                background: var(--color-success-bg);
+                color: var(--color-success);
+                border: 1px solid var(--color-success);
+            }
+            
+            .notification-error {
+                background: var(--color-error-bg);
+                color: var(--color-error);
+                border: 1px solid var(--color-error);
             }
         </style>
     </body>
