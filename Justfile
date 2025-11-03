@@ -9,6 +9,10 @@ run:
 test:
     cargo test
 
+test-integration:
+    # Run integration tests specifically
+    cargo test --test playwright_test
+
 clean:
     cargo clean
 

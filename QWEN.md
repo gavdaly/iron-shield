@@ -81,7 +81,8 @@ To build and run the Iron Shield application:
 
 4. **Development**:
    - For development, you can use `just check` to format, lint with clippy, and run tests
-   - Use `just test` to run any tests (though none are currently implemented)
+   - Use `just test` to run unit tests
+   - Use `just test-integration` to run integration tests with Playwright
    - Use `just fmt` to format the code according to Rust standards
    - Use `just clippy` to run the linter with pedantic warnings
 
@@ -89,6 +90,53 @@ To build and run the Iron Shield application:
    - `just build`: Compile the project without running it
    - `just clean`: Remove build artifacts
    - `just check`: Run format, clippy, and test in sequence
+   - `just test-integration`: Run integration tests specifically
+
+## Integration Testing
+
+The project includes integration tests to verify the application's behavior, with a framework in place for browser-based tests using Playwright.rs.
+
+### Running Integration Tests
+
+To run the integration tests:
+
+```bash
+just test-integration
+```
+
+### Current Integration Tests
+
+The current integration tests include:
+
+1. `test_server_startup` - Verifies that the server starts and responds to HTTP requests
+2. `test_config_loading` - Verifies that custom configurations are loaded correctly
+3. `playwright_test_template` - A template showing how Playwright tests would be structured
+
+### Adding More Integration Tests
+
+To add more integration tests:
+
+1. Add new test functions to `tests/playwright_test.rs`
+2. Use the existing test functions as a template
+3. Remember to start the server and wait for it to be ready before testing
+4. Always clean up resources (terminate server processes, remove temporary config files)
+5. Consider using temporary configuration files that don't affect the main config
+
+### Adding Playwright Tests
+
+When the Playwright.rs API for Rust is fully ready for use, you can add browser automation tests by:
+
+1. Adding the necessary Playwright dependency with appropriate features
+2. Using the async API to launch browsers and interact with the UI
+3. Performing UI assertions and interactions
+4. Taking screenshots for visual regression testing if needed
+
+### Important Notes
+
+- Integration tests start the actual Iron Shield server on port 3001
+- Tests perform HTTP requests to verify functionality
+- The tests clean up after themselves, but make sure to terminate server processes
+- Test configuration files are removed after tests to avoid conflicts
 
 ## Configuration
 
