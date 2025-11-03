@@ -7,6 +7,8 @@ mod index;
 mod server;
 mod uptime;
 
+use crate::error::IronShieldError;
+
 /// Main entry point for the Iron Shield application
 ///
 /// Initializes tracing, parses command line arguments for the port,
@@ -14,7 +16,7 @@ mod uptime;
 /// The application will listen for Ctrl+C (SIGINT) and SIGTERM signals
 /// to perform a graceful shutdown.
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), IronShieldError> {
     tracing_subscriber::registry()
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .with(tracing_subscriber::fmt::layer())

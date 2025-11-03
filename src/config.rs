@@ -12,10 +12,13 @@ use tracing::{debug, error, info};
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct Config {
     /// Name of the site displayed in the page title
+    #[serde(default = "default_site_name")]
     pub site_name: String,
     /// Clock format to use (24-hour, 12-hour, or no clock)
+    #[serde(default)]
     pub clock: Clock,
     /// List of bookmarked sites to display
+    #[serde(default)]
     pub sites: Vec<Site>,
 }
 
@@ -45,29 +48,16 @@ impl Config {
     pub fn load() -> crate::error::Result<Self> {
         tracing::debug!("Loading application configuration");
         let config_str = fs::read_to_string("config.json5")?;
-
-        // Deserialize to a JSON Value first to check if clock field exists
-        let mut value: serde_json::Value = json5::from_str(&config_str)?;
-
-        // If clock field is missing, set it to the default
-        if value.get("clock").is_none() {
-            if let Some(obj) = value.as_object_mut() {
-                obj.insert(
-                    "clock".to_string(),
-                    serde_json::Value::String("None".to_string()),
-                );
-            } else {
-                return Err(crate::error::IronShieldError::Generic(
-                    "Config is not an object".to_string(),
-                ));
-            }
-        }
-
-        let config: Config = serde_json::from_value(value)?;
+        let config: Config = json5::from_str(&config_str)?;
 
         tracing::info!("Configuration loaded successfully");
         Ok(config)
     }
+}
+
+/// Provides a default site name if not specified in config
+fn default_site_name() -> String {
+    "Iron Shield Dashboard".to_string()
 }
 
 /// Clock format options
@@ -75,13 +65,13 @@ impl Config {
 /// Defines the format in which to display the time on the dashboard
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone)]
 pub enum Clock {
+    /// No clock displayed
+    #[default]
+    None,
     /// 24-hour format (e.g., 13:00)
     Hour24,
     /// 12-hour format with AM/PM (e.g., 1:00 PM)
     Hour12,
-    /// No clock displayed
-    #[default]
-    None,
 }
 
 impl std::fmt::Display for Clock {
@@ -107,6 +97,7 @@ impl std::fmt::Display for Clock {
 pub struct ConfigWatcher {
     /// The actual configuration wrapped in `RwLock` for interior mutability
     pub config: Arc<RwLock<Config>>,
+    _watcher: notify::RecommendedWatcher, // Keep watcher alive via ownership
 }
 
 impl ConfigWatcher {
@@ -187,11 +178,9 @@ impl ConfigWatcher {
             }
         });
 
-        // Since the watcher needs to be kept alive for the duration of the ConfigWatcher
-        std::mem::forget(watcher);
-
         Ok(ConfigWatcher {
             config: config_rwlock,
+            _watcher: watcher,
         })
     }
 

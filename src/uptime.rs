@@ -5,6 +5,7 @@ use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
+use tokio::sync::Semaphore;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info};
@@ -41,6 +42,9 @@ pub async fn uptime_stream(
     let config = state.config.clone();
     let history_map = state.history.clone();
     let client = reqwest::Client::new();
+
+    // Create a semaphore to limit concurrent site checks
+    let semaphore = Arc::new(Semaphore::new(10)); // Limit to 10 concurrent checks
 
     // Create a channel to send updates from the checker task
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -79,15 +83,15 @@ pub async fn uptime_stream(
             debug!("Starting new uptime check cycle");
 
             // Get a copy of the sites to check
-            let config_guard = match config.read() {
-                Ok(guard) => guard,
-                Err(e) => {
-                    error!("Failed to acquire config read lock: {e}");
-                    continue;
+            let sites_to_check = {
+                match config.read() {
+                    Ok(guard) => guard.sites.clone(),
+                    Err(e) => {
+                        error!("Failed to acquire config read lock: {e}");
+                        continue;
+                    }
                 }
-            };
-            let sites_to_check = config_guard.sites.clone();
-            drop(config_guard); // Release the read lock as soon as possible
+            }; // Release the read lock immediately after cloning
 
             // Update history to loading state
             {
@@ -148,15 +152,18 @@ pub async fn uptime_stream(
                 }
             }
 
-            // Now check the actual status of each site
+            // Now check the actual status of each site with concurrency limiting
+            let mut tasks = Vec::new();
             for site in &sites_to_check {
                 let client = client.clone();
                 let url = site.url.clone();
                 let tx = tx.clone();
                 let history_map = history_map.clone();
                 let site_name = site.name.clone();
+                let semaphore = semaphore.clone();
 
-                tokio::spawn(async move {
+                let task = tokio::spawn(async move {
+                    let _permit = semaphore.acquire().await.unwrap(); // Wait for permit
                     debug!("Starting uptime check for site: {site_name}");
 
                     let status = check_site_status(&client, &url).await;
@@ -210,6 +217,13 @@ pub async fn uptime_stream(
                         }
                     }
                 });
+                
+                tasks.push(task);
+            }
+            
+            // Wait for all tasks to complete before next interval
+            for task in tasks {
+                let _ = task.await;
             }
         }
     });

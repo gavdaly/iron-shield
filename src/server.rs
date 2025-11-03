@@ -3,7 +3,8 @@ use crate::error::Result;
 use crate::index::generate_index;
 use crate::uptime::{uptime_stream, UptimeState};
 use axum::{routing::get, Router};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use tokio::signal;
 use tower_http::services::ServeDir;
 use tracing::info;
@@ -34,7 +35,7 @@ pub async fn run(port: u16) -> Result<()> {
     info!("Configuration loaded and watcher initialized successfully");
 
     // Create uptime state with the config from ConfigWatcher
-    let history_map = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+    let history_map = Arc::new(RwLock::new(HashMap::new()));
     let uptime_state = Arc::new(UptimeState {
         config: config_rwlock,
         history: history_map,

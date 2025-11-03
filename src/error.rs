@@ -10,19 +10,14 @@ use std::fmt;
 pub enum IronShieldError {
     /// Error occurred while parsing address
     AddressParse(std::net::AddrParseError),
-
     /// Error occurred while running the server
     ServerRun(axum::Error),
-
     /// Error occurred while reading configuration file
     ConfigRead(std::io::Error),
-
     /// Error occurred while parsing configuration
     ConfigParse(json5::Error),
-
     /// Error occurred while serializing/deserializing JSON
     JsonParse(serde_json::Error),
-
     /// Generic error with a message
     Generic(String),
 }
@@ -30,24 +25,12 @@ pub enum IronShieldError {
 impl fmt::Display for IronShieldError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            IronShieldError::AddressParse(e) => {
-                write!(f, "Failed to parse network address: {e}")
-            }
-            IronShieldError::ServerRun(e) => {
-                write!(f, "Server runtime error: {e}")
-            }
-            IronShieldError::ConfigRead(e) => {
-                write!(f, "Failed to read configuration file: {e}")
-            }
-            IronShieldError::ConfigParse(e) => {
-                write!(f, "Failed to parse configuration: {e}")
-            }
-            IronShieldError::JsonParse(e) => {
-                write!(f, "Failed to parse JSON: {e}")
-            }
-            IronShieldError::Generic(msg) => {
-                write!(f, "Error: {msg}")
-            }
+            IronShieldError::AddressParse(e) => write!(f, "Failed to parse network address: {e}"),
+            IronShieldError::ServerRun(e) => write!(f, "Server runtime error: {e}"),
+            IronShieldError::ConfigRead(e) => write!(f, "Failed to read configuration file: {e}"),
+            IronShieldError::ConfigParse(e) => write!(f, "Failed to parse configuration: {e}"),
+            IronShieldError::JsonParse(e) => write!(f, "Failed to parse JSON: {e}"),
+            IronShieldError::Generic(msg) => write!(f, "Error: {msg}"),
         }
     }
 }
@@ -92,6 +75,18 @@ impl From<json5::Error> for IronShieldError {
 impl From<serde_json::Error> for IronShieldError {
     fn from(error: serde_json::Error) -> Self {
         IronShieldError::JsonParse(error)
+    }
+}
+
+impl From<&str> for IronShieldError {
+    fn from(error: &str) -> Self {
+        IronShieldError::Generic(error.to_string())
+    }
+}
+
+impl From<String> for IronShieldError {
+    fn from(error: String) -> Self {
+        IronShieldError::Generic(error)
     }
 }
 
