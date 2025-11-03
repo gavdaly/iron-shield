@@ -6,6 +6,9 @@ use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
+/// Default configuration file name
+pub const CONFIG_FILE: &str = "config.json5";
+
 /// Application configuration structure
 ///
 /// Contains all configuration parameters for the Iron Shield dashboard
@@ -31,6 +34,9 @@ pub struct Site {
     pub name: String,
     /// URL of the site
     pub url: String,
+    /// Category for grouping sites
+    #[serde(default)]
+    pub category: String,
     /// List of tags for categorization and filtering
     pub tags: Vec<String>,
 }
@@ -47,8 +53,10 @@ impl Config {
     /// Returns an error if the configuration file cannot be read or parsed
     pub fn load() -> crate::error::Result<Self> {
         tracing::debug!("Loading application configuration");
-        let config_str = fs::read_to_string("config.json5")?;
-        let config: Config = json5::from_str(&config_str)?;
+        let config_str = fs::read_to_string("config.json5")
+            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to read config file: {e}")))?;
+        let config: Config = json5::from_str(&config_str)
+            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to parse config file: {e}")))?;
 
         tracing::info!("Configuration loaded successfully");
         Ok(config)
@@ -139,12 +147,12 @@ impl ConfigWatcher {
                     Err(e) => error!("Watch error: {:?}", e),
                 }
             })
-            .map_err(|e| crate::error::IronShieldError::Generic(e.to_string()))?;
+            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to create file watcher: {e}")))?;
 
         // Add the config file to the watcher
         watcher
             .watch(config_path, RecursiveMode::NonRecursive)
-            .map_err(|e| crate::error::IronShieldError::Generic(e.to_string()))?;
+            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to watch config file: {e}")))?;
 
         info!("Started config file watcher for: {:?}", config_path);
 

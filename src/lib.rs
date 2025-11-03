@@ -17,3 +17,6 @@ pub mod server;
 
 /// Uptime monitoring module
 pub mod uptime;
+
+/// Settings page module
+pub mod settings;

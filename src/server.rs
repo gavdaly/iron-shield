@@ -1,13 +1,20 @@
-use crate::config::ConfigWatcher;
+use crate::config::{ConfigWatcher, CONFIG_FILE};
 use crate::error::Result;
 use crate::index::generate_index;
+use crate::settings::{generate_settings, save_config};
 use crate::uptime::{uptime_stream, UptimeState};
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
 use tower_http::services::ServeDir;
 use tracing::info;
+
+/// Static files directory
+const STATIC_DIR: &str = "static";
 
 /// Run the web server on the specified port.
 ///
@@ -28,7 +35,7 @@ pub async fn run(port: u16) -> Result<()> {
     tracing::info!("Initializing server");
 
     // Create the config watcher which handles loading and watching the config file
-    let config_path = std::path::Path::new("config.json5").to_path_buf();
+    let config_path = std::path::Path::new(CONFIG_FILE).to_path_buf();
     let config_watcher = ConfigWatcher::new(&config_path)?;
     let config_rwlock = config_watcher.get_config(); // Get the Arc<RwLock<Config>>
 
@@ -43,14 +50,17 @@ pub async fn run(port: u16) -> Result<()> {
 
     let app = Router::new()
         .route("/", get(generate_index))
+        .route("/settings", get(generate_settings))
+        .route("/api/config", post(save_config))
         .route("/uptime", get(uptime_stream))
-        .nest_service("/static", ServeDir::new("static"))
+        .nest_service("/static", ServeDir::new(STATIC_DIR))
         .with_state(uptime_state.clone());
 
     tracing::debug!("Routes configured");
 
     let addr = format!("0.0.0.0:{port}");
-    let address = &addr.parse()?;
+    let address = &addr.parse()
+        .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to parse address: {e}")))?;
     tracing::info!("Binding server to address: {address}");
 
     tracing::info!("Site launched on: http://{addr}");
