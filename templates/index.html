@@ -21,7 +21,7 @@
                     data-format="24hour"
                     aria-live="polite"
                     aria-atomic="true"
-                ></div>
+                >{{current_time}}</div>
             </div>
         </header>
         {% when Clock::Hour12 %}
@@ -32,7 +32,7 @@
                     data-format="12hour"
                     aria-live="polite"
                     aria-atomic="true"
-                ></div>
+                >{{current_time}}</div>
             </div>
         </header>
         {% when Clock::None %} {% endmatch %}

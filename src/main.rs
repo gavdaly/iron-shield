@@ -7,6 +7,7 @@ mod index;
 mod server;
 mod settings;
 mod uptime;
+mod utils;
 
 use crate::error::IronShieldError;
 

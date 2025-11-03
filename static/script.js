@@ -9,10 +9,55 @@ function setClock() {
   let timeElement = document.getElementById("time");
   if (timeElement) {
     let data = timeElement.dataset.format;
+    // Convert initial UTC time to local time if displayed
+    convertInitialUTCToLocal(timeElement);
     updateTimeAndBackground(timeElement, data);
     clockInterval = setInterval(() => {
       updateTimeAndBackground(timeElement, data);
     }, 1000);
+  }
+}
+
+// Function to convert initial UTC time to user's local time
+function convertInitialUTCToLocal(timeElement) {
+  // Get the current content of the time element (initially showing UTC time)
+  const timeText = timeElement.textContent.trim();
+  
+  // Check if it's showing UTC time (has "UTC" suffix)
+  if (timeText && timeText.includes(" UTC")) {
+    // Parse the UTC time
+    const utcTimeString = timeText.replace(" UTC", "").trim();
+    
+    // Create a date object from the time string
+    // This assumes only the time (HH:MM:SS) is provided, so we'll use today's date
+    const now = new Date();
+    const [hours, minutes, seconds] = utcTimeString.split(':').map(Number);
+    
+    // Create a date object with UTC time
+    const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, seconds));
+    
+    // Convert to local time
+    const localHours = utcDate.getHours();
+    const localMinutes = utcDate.getMinutes().toString().padStart(2, '0');
+    const localSeconds = utcDate.getSeconds().toString().padStart(2, '0');
+    
+    // Format based on the clock format
+    const format = timeElement.dataset.format;
+    let localTimeString;
+    
+    if (format === "12hour") {
+      // Convert to 12-hour format
+      let displayHours = localHours % 12;
+      if (displayHours === 0) displayHours = 12;
+      const ampm = localHours >= 12 ? "PM" : "AM";
+      localTimeString = `${displayHours}:${localMinutes}:${localSeconds} ${ampm}`;
+    } else {
+      // 24-hour format
+      localTimeString = `${localHours}:${localMinutes}:${localSeconds}`;
+    }
+    
+    // Update the time element with local time
+    timeElement.textContent = localTimeString;
   }
 }
 

@@ -1,5 +1,6 @@
 use crate::config::Clock;
 use crate::uptime::UptimeState;
+use crate::utils;
 use askama_axum::Template;
 use axum::{
     extract::State,
@@ -16,6 +17,8 @@ use std::sync::Arc;
 pub struct IndexTemplate {
     /// Configuration data for the dashboard
     config: crate::config::Config,
+    /// Current UTC time as a formatted string
+    current_time: String,
 }
 
 /// Generates the index template with loaded configuration
@@ -31,7 +34,11 @@ pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoR
         Ok(config_guard) => {
             let config = config_guard.clone(); // Clone the config to avoid holding the lock
             drop(config_guard); // Explicitly drop the lock as soon as possible
-            let template = IndexTemplate { config };
+            
+            // Get current UTC time from utility function
+            let current_time = utils::get_current_time_string();
+            
+            let template = IndexTemplate { config, current_time };
             match template.render() {
                 Ok(html) => Html(html).into_response(),
                 Err(e) => {

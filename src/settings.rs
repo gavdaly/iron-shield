@@ -1,6 +1,7 @@
 use crate::config::{Clock, Config, CONFIG_FILE};
 use crate::error::Result;
 use crate::uptime::UptimeState;
+use crate::utils;
 use askama_axum::Template;
 use axum::{
     extract::{Json, State},
@@ -18,6 +19,7 @@ use url::Url;
 #[template(path = "settings.html")]
 pub struct SettingsTemplate {
     config: Config,
+    current_time: String,
 }
 
 /// Generates the settings template with loaded configuration
@@ -41,7 +43,9 @@ pub async fn generate_settings(State(state): State<Arc<UptimeState>>) -> impl In
         }
     };
 
-    let template = SettingsTemplate { config };
+    let current_time = utils::get_current_time_string();
+    
+    let template = SettingsTemplate { config, current_time };
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(e) => {

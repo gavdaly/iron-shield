@@ -916,6 +916,7 @@ dependencies = [
  "askama",
  "askama_axum",
  "axum",
+ "chrono",
  "json5",
  "notify",
  "playwright",

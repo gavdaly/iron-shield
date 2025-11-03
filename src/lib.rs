@@ -20,3 +20,6 @@ pub mod uptime;
 
 /// Settings page module
 pub mod settings;
+
+/// Utility functions module
+pub mod utils;
