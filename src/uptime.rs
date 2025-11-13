@@ -440,7 +440,11 @@ mod tests {
 
         let config_file_path = std::path::PathBuf::from("config.json5");
 
-        let uptime_state = UptimeState { config, history, config_file_path };
+        let uptime_state = UptimeState {
+            config,
+            history,
+            config_file_path,
+        };
 
         // Verify that the state can be created without issues
         assert!(uptime_state.config.read().is_ok());
@@ -495,6 +499,14 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_check_site_status_down_non_2xx() {
+        // Test with a URL that returns a 500 Internal Server Error
+        let client = reqwest::Client::new();
+        let result = check_site_status(&client, "https://httpbin.org/status/500").await;
+        assert_eq!(result, UptimeStatus::Down);
+    }
+
+    #[tokio::test]
     async fn test_check_site_status_with_timeout() {
         // Test with a URL that should timeout
         let client = reqwest::Client::builder()
@@ -511,10 +523,10 @@ mod tests {
     fn test_calculate_uptime_percentage_accuracy() {
         // Test with a known percentage (75% uptime)
         let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up);      // Counted as up
-        history.push_back(UptimeStatus::Up);      // Counted as up
-        history.push_back(UptimeStatus::Up);      // Counted as up
-        history.push_back(UptimeStatus::Down);    // Counted as down
+        history.push_back(UptimeStatus::Up); // Counted as up
+        history.push_back(UptimeStatus::Up); // Counted as up
+        history.push_back(UptimeStatus::Up); // Counted as up
+        history.push_back(UptimeStatus::Down); // Counted as down
 
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 75.0).abs() < f64::EPSILON);
@@ -524,12 +536,12 @@ mod tests {
     fn test_calculate_uptime_percentage_with_mixed_loading() {
         // Test that loading statuses are excluded from calculation
         let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Up); // Counted as up
         history.push_back(UptimeStatus::Loading); // Not counted
-        history.push_back(UptimeStatus::Down);    // Counted as down
+        history.push_back(UptimeStatus::Down); // Counted as down
         history.push_back(UptimeStatus::Loading); // Not counted
-        history.push_back(UptimeStatus::Up);      // Counted as up
-        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Up); // Counted as up
+        history.push_back(UptimeStatus::Up); // Counted as up
 
         // Should be 3 up / 4 total non-loading = 75%
         let percentage = calculate_uptime_percentage(&history);
