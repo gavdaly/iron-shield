@@ -1,0 +1,24 @@
+{
+    "site_name": "My Iron Shield Dashboard",
+    "clock": "Hour24",
+    "sites": [
+        {
+            "name": "Google",
+            "url": "https://www.google.com",
+            "category": "Search",
+            "tags": ["search", "web"]
+        },
+        {
+            "name": "Invalid Site",
+            "url": "http://invalid.url.com",
+            "category": "Test",
+            "tags": ["test", "down"]
+        },
+        {
+            "name": "Example",
+            "url": "https://example.com",
+            "category": "Examples",
+            "tags": ["example"]
+        }
+    ]
+}
