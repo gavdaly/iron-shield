@@ -51,16 +51,16 @@ impl Config {
     /// # Errors
     ///
     /// Returns an error if the configuration file cannot be read or parsed
-    pub fn load() -> crate::error::Result<Self> {
-        tracing::debug!("Loading application configuration");
-        let config_str = fs::read_to_string("config.json5").map_err(|e| {
-            crate::error::IronShieldError::Generic(format!("Failed to read config file: {e}"))
+    pub fn load(config_file_path: &PathBuf) -> crate::error::Result<Self> {
+        tracing::debug!("Loading application configuration from {:?}", config_file_path);
+        let config_str = fs::read_to_string(config_file_path).map_err(|e| {
+            crate::error::IronShieldError::Generic(format!("Failed to read config file {:?}: {e}", config_file_path))
         })?;
         let config: Config = json5::from_str(&config_str).map_err(|e| {
-            crate::error::IronShieldError::Generic(format!("Failed to parse config file: {e}"))
+            crate::error::IronShieldError::Generic(format!("Failed to parse config file {:?}: {e}", config_file_path))
         })?;
 
-        tracing::info!("Configuration loaded successfully");
+        tracing::info!("Configuration loaded successfully from {:?}", config_file_path);
         Ok(config)
     }
 }
@@ -119,7 +119,7 @@ impl ConfigWatcher {
     /// or if the file watcher cannot be set up.
     pub fn new(config_path: &PathBuf) -> crate::error::Result<Self> {
         // Load initial configuration
-        let config = Config::load()?;
+        let config = Config::load(config_path)?;
         let config_rwlock = Arc::new(RwLock::new(config));
 
         // Create the config watcher
@@ -168,10 +168,11 @@ impl ConfigWatcher {
         tokio::spawn({
             let config_inner = watcher_config;
             let mut reload_rx = rx;
+            let reload_config_path = config_path.clone(); // Clone for reload task
             async move {
                 loop {
                     if reload_rx.recv().await.is_some() {
-                        match Config::load() {
+                        match Config::load(&reload_config_path) {
                             Ok(new_config) => {
                                 let number_of_sites = new_config.sites.len();
                                 info!("Reloading configuration with {number_of_sites} sites");

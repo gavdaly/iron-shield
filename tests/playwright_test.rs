@@ -4,22 +4,40 @@
 
 use serde_json::json;
 use std::fs;
+use std::net::TcpListener;
+use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::time::Duration;
 use tokio::net::TcpStream;
+use tempfile::NamedTempFile;
+use playwright::api::{Browser, Page, BrowserContext};
+
+// Helper function to find an available port
+fn find_available_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .expect("Failed to bind to an available port")
+        .local_addr()
+        .expect("Failed to get local address")
+        .port()
+}
 
 // Helper function to start the Iron Shield server
-fn start_server() -> Child {
-    Command::new("cargo")
-        .args(["run", "--", "3001"]) // Use port 3001 for testing to avoid conflicts
-        .spawn()
+fn start_server(port: u16, config_file: Option<&PathBuf>) -> Child {
+    let mut command = Command::new("cargo");
+    command.args(["run", "--", &port.to_string()]);
+
+    if let Some(path) = config_file {
+        command.arg(path.to_str().unwrap());
+    }
+
+    command.spawn()
         .expect("Failed to start Iron Shield server")
 }
 
 // Helper to wait for the server to be ready
-async fn wait_for_server_ready() {
+async fn wait_for_server_ready(port: u16) {
     for _ in 0..30 {
-        if TcpStream::connect("127.0.0.1:3001").await.is_ok() {
+        if TcpStream::connect(format!("127.0.0.1:{}", port)).await.is_ok() {
             tokio::time::sleep(Duration::from_millis(500)).await;
             return;
         }
@@ -30,14 +48,15 @@ async fn wait_for_server_ready() {
 
 #[tokio::test]
 async fn test_server_startup() {
+    let port = find_available_port();
     // Start the server in a separate process
-    let mut server_process = start_server();
+    let mut server_process = start_server(port, None);
 
     // Wait for the server to be ready
-    wait_for_server_ready().await;
+    wait_for_server_ready(port).await;
 
     // Test that the server responds to HTTP requests
-    let response = reqwest::get("http://localhost:3001").await;
+    let response = reqwest::get(format!("http://localhost:{}", port)).await;
     assert!(response.is_ok());
     let _status = response.unwrap().status();
     // Terminate the server process
@@ -47,6 +66,7 @@ async fn test_server_startup() {
 
 #[tokio::test]
 async fn test_config_loading() {
+    let port = find_available_port();
     // Create a temporary config file for testing
     let test_config = json!({
         "site_name": "Test Dashboard",
@@ -65,16 +85,17 @@ async fn test_config_loading() {
         ]
     });
 
-    fs::write("config.json5", format!("{test_config}")).unwrap();
+    let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+    let temp_config_path = temp_file.path().to_path_buf();
+    fs::write(&temp_config_path, format!("{test_config}")).expect("Failed to write temporary config file");
 
-    // Start the server in a separate process
-    let mut server_process = start_server();
+    let mut server_process = start_server(port, Some(&temp_config_path));
 
     // Wait for the server to be ready
-    wait_for_server_ready().await;
+    wait_for_server_ready(port).await;
 
     // Test that the server responds with the custom config
-    let response = reqwest::get("http://localhost:3001").await;
+    let response = reqwest::get(format!("http://localhost:{}", port)).await;
     assert!(response.is_ok());
     let text = response.unwrap().text().await.unwrap();
     assert!(text.contains("Test Dashboard"));
@@ -85,23 +106,61 @@ async fn test_config_loading() {
     server_process.kill().unwrap();
     server_process.wait().unwrap();
 
-    // Clean up test config file
-    fs::remove_file("config.json5").unwrap();
+    // temp_file will be automatically deleted when it goes out of scope
 }
 
 // Additional test demonstrating how Playwright tests would work when available
 #[tokio::test]
-async fn playwright_test_template() {
-    // This is a placeholder to show how a Playwright test would be structured
-    // when the Rust Playwright API is fully functional and integrated
+async fn integration_start_up() {
+    let port = find_available_port();
 
-    // The test would:
-    // 1. Start the Iron Shield server
-    // 2. Launch a browser using Playwright
-    // 3. Navigate to the application
-    // 4. Wait for 1 minute for sse events
-    // 5. See the uptime for Google should be 100%
-    // 6. Close the browser and terminate the server
+    // 1. Create a temporary config file for testing
+    let test_config = json!({
+        "site_name": "Playwright Test Dashboard",
+        "clock": "None",
+        "sites": [
+            {
+                "name": "Google",
+                "url": "https://www.google.com",
+                "tags": ["search", "popular"]
+            }
+        ]
+    });
 
-    // For now, we just verify that the test compiles
+    let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
+    let temp_config_path = temp_file.path().to_path_buf();
+    fs::write(&temp_config_path, format!("{test_config}")).expect("Failed to write temporary config file");
+
+    // 2. Start the Iron Shield server
+    let mut server_process = start_server(port, Some(&temp_config_path));
+
+    // Wait for the server to be ready
+    wait_for_server_ready(port).await;
+
+    // 3. Launch a browser using Playwright
+    let playwright = playwright::api::playwright::Playwright::initialize().await.unwrap();
+    playwright.prepare().unwrap();
+    let browser = playwright.chromium().launcher().launch().await.unwrap();
+    let context = browser.context_builder().build().await.unwrap();
+    let page = context.new_page().await.unwrap();
+
+    // 4. Navigate to the application
+    page.goto_builder(format!("http://localhost:{}", port).as_str()).goto().await.unwrap();
+
+    // 5. Wait for 1 minute for sse events and 6. See the uptime for Google should be 100%
+    // This selector looks for a div that contains the text 'Google' and then within that div,
+    // it looks for any element that contains the text '100%'.
+    // This implicitly checks if JavaScript is running and SSE events have updated the UI.
+    page.wait_for_selector_builder("div:has-text('Google') >> text='100%'")
+        .timeout(60000.0) // 1 minute timeout
+        .wait_for_selector()
+        .await
+        .expect("Google uptime did not reach 100% within 1 minute");
+
+    // 7. Close the browser and terminate the server
+    browser.close().await.unwrap();
+    server_process.kill().unwrap();
+    server_process.wait().unwrap();
+
+    // temp_file will be automatically deleted when it goes out of scope
 }

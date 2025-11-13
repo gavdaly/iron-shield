@@ -8,6 +8,7 @@ use axum::{
     Router,
 };
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
 use tower_http::services::ServeDir;
@@ -31,11 +32,13 @@ const STATIC_DIR: &str = "static";
 /// Returns an error if:
 /// - The address string cannot be parsed into a valid `SocketAddr`
 /// - The server fails to bind to the specified address
-pub async fn run(port: u16) -> Result<()> {
+pub async fn run(port: u16, config_file_path_option: Option<PathBuf>) -> Result<()> {
     tracing::info!("Initializing server");
 
+    // Determine the config file path to use
+    let config_path = config_file_path_option.unwrap_or_else(|| std::path::Path::new(CONFIG_FILE).to_path_buf());
+
     // Create the config watcher which handles loading and watching the config file
-    let config_path = std::path::Path::new(CONFIG_FILE).to_path_buf();
     let config_watcher = ConfigWatcher::new(&config_path)?;
     let config_rwlock = config_watcher.get_config(); // Get the Arc<RwLock<Config>>
 
@@ -46,7 +49,7 @@ pub async fn run(port: u16) -> Result<()> {
     let uptime_state = Arc::new(UptimeState {
         config: config_rwlock,
         history: history_map,
-        config_file_path: config_path,
+        config_file_path: config_path.clone(), // Clone for UptimeState
     });
 
     let app = Router::new()

@@ -29,5 +29,4 @@ http-body-util = "0.1"
 playwright = "0.0.20"
 reqwest = "0.11"
 tokio-test = "0.4"
-tokio = { version = "1.0", features = ["full"] }
 tempfile = "3.3"

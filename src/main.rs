@@ -1,4 +1,5 @@
 use std::env;
+use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 mod config;
@@ -29,10 +30,16 @@ async fn main() -> Result<(), IronShieldError> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(3000);
 
+    let mut config_file_path: Option<PathBuf> = None;
+
+    if let Some(arg2) = env::args().nth(2) {
+        config_file_path = Some(PathBuf::from(arg2));
+    }
+
     tracing::info!("Starting Iron Shield application");
     tracing::debug!("Application initialized with tracing enabled");
 
-    server::run(port).await?;
+    server::run(port, config_file_path).await?;
 
     tracing::info!("Iron Shield application shutting down");
     Ok(())
