@@ -53,10 +53,12 @@ impl Config {
     /// Returns an error if the configuration file cannot be read or parsed
     pub fn load() -> crate::error::Result<Self> {
         tracing::debug!("Loading application configuration");
-        let config_str = fs::read_to_string("config.json5")
-            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to read config file: {e}")))?;
-        let config: Config = json5::from_str(&config_str)
-            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to parse config file: {e}")))?;
+        let config_str = fs::read_to_string("config.json5").map_err(|e| {
+            crate::error::IronShieldError::Generic(format!("Failed to read config file: {e}"))
+        })?;
+        let config: Config = json5::from_str(&config_str).map_err(|e| {
+            crate::error::IronShieldError::Generic(format!("Failed to parse config file: {e}"))
+        })?;
 
         tracing::info!("Configuration loaded successfully");
         Ok(config)
@@ -147,12 +149,18 @@ impl ConfigWatcher {
                     Err(e) => error!("Watch error: {:?}", e),
                 }
             })
-            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to create file watcher: {e}")))?;
+            .map_err(|e| {
+                crate::error::IronShieldError::Generic(format!(
+                    "Failed to create file watcher: {e}"
+                ))
+            })?;
 
         // Add the config file to the watcher
         watcher
             .watch(config_path, RecursiveMode::NonRecursive)
-            .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to watch config file: {e}")))?;
+            .map_err(|e| {
+                crate::error::IronShieldError::Generic(format!("Failed to watch config file: {e}"))
+            })?;
 
         info!("Started config file watcher for: {:?}", config_path);
 

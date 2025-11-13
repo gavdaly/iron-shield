@@ -39,6 +39,11 @@
     --letter-spacing-wider: 0.05em;
     --letter-spacing-widest: 0.1em;
 
+    --color-bg-gradient: linear-gradient(
+        135deg,
+        var(--color-bg-primary),
+        var(--color-bg-secondary)
+    );
     /* Dark theme color system */
     --color-bg-primary: #1a1a1a;
     --color-bg-secondary: #2d2d2d;
@@ -64,7 +69,6 @@
         color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
     --transition-transform: transform 0.3s ease;
     --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
 }
 
 @keyframes fadeIn {
@@ -78,25 +82,6 @@
     }
 }
 
-body {
-    font-family: var(--font-primary);
-    background: var(--bg-color-1);
-    background-size:
-        100% 100%,
-        100% 100%,
-        800px 800px;
-    color: var(--color-text-primary);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    transition: background 1s ease;
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-regular);
-    letter-spacing: var(--letter-spacing-normal);
-}
-
 #clock-container {
     animation: fadeIn 0.8s ease-out forwards;
 }
@@ -106,46 +91,8 @@ body {
 }
 
 /* Time-of-day background gradients */
-[data-time="morning"] {
-    --bg-color-1: #3a7bd5;
-    --bg-color-2: #00d2ff;
-}
-
-[data-time="afternoon"] {
-    --bg-color-1: #56ab2f;
-    --bg-color-2: #a8e063;
-}
-
-[data-time="evening"] {
-    --bg-color-1: #ff7e5f;
-    --bg-color-2: #feb47b;
-}
-
-[data-time="night"] {
-    --bg-color-1: #5b247a;
-    --bg-color-2: #1bcedf;
-}
-
 body {
-    font-family: var(--font-primary);
-    background:
-        linear-gradient(
-                135deg,
-                var(--bg-color-1, #1a1a1a),
-                var(--bg-color-2, #1a1a1a)
-            )
-            0 0,
-        var(--color-bg-primary) 0 0,
-        radial-gradient(
-                ellipse at 50% 70%,
-                rgba(128, 128, 128, 0.07) 0%,
-                transparent 70%
-            )
-            0 0;
-    background-size:
-        100% 100%,
-        100% 100%,
-        800px 800px;
+    background: var(--color-bg-gradient);
     color: var(--color-text-primary);
     min-height: 100vh;
     display: flex;
@@ -156,6 +103,22 @@ body {
     font-size: var(--text-base);
     font-weight: var(--font-weight-regular);
     letter-spacing: var(--letter-spacing-normal);
+}
+
+[data-time="morning"] {
+    background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+}
+
+[data-time="afternoon"] {
+    background: linear-gradient(135deg, #56ab2f, #a8e063);
+}
+
+[data-time="evening"] {
+    background: linear-gradient(135deg, #ff7e5f, #feb47b);
+}
+
+[data-time="night"] {
+    background: linear-gradient(135deg, #5b247a, #1bcedf);
 }
 
 #theme-toggle {

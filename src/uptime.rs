@@ -34,6 +34,11 @@ pub struct UptimeState {
 }
 
 /// Handles the uptime monitoring stream endpoint
+///
+/// # Panics
+///
+/// This function might panic if `semaphore.acquire().await.unwrap()` fails.
+/// However, this should not happen in practice as the semaphore is always available.
 #[allow(clippy::too_many_lines)]
 pub async fn uptime_stream(
     State(state): State<Arc<UptimeState>>,
@@ -217,10 +222,10 @@ pub async fn uptime_stream(
                         }
                     }
                 });
-                
+
                 tasks.push(task);
             }
-            
+
             // Wait for all tasks to complete before next interval
             for task in tasks {
                 let _ = task.await;

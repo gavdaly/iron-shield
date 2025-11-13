@@ -59,8 +59,9 @@ pub async fn run(port: u16) -> Result<()> {
     tracing::debug!("Routes configured");
 
     let addr = format!("0.0.0.0:{port}");
-    let address = &addr.parse()
-        .map_err(|e| crate::error::IronShieldError::Generic(format!("Failed to parse address: {e}")))?;
+    let address = &addr.parse().map_err(|e| {
+        crate::error::IronShieldError::Generic(format!("Failed to parse address: {e}"))
+    })?;
     tracing::info!("Binding server to address: {address}");
 
     tracing::info!("Site launched on: http://{addr}");

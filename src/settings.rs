@@ -31,21 +31,23 @@ pub async fn generate_settings(State(state): State<Arc<UptimeState>>) -> impl In
     tracing::debug!("Generating settings template");
 
     // Get the config from the shared state
-    let config = match state.config.read() {
-        Ok(config_guard) => config_guard.clone(), // Clone the config to avoid holding the lock
-        Err(_) => {
-            tracing::error!("Configuration read lock error");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Configuration read lock error",
-            )
-                .into_response();
-        }
+    let config = if let Ok(config_guard) = state.config.read() {
+        config_guard.clone() // Clone the config to avoid holding the lock
+    } else {
+        tracing::error!("Configuration read lock error");
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Configuration read lock error",
+        )
+            .into_response();
     };
 
     let current_time = utils::get_current_time_string();
-    
-    let template = SettingsTemplate { config, current_time };
+
+    let template = SettingsTemplate {
+        config,
+        current_time,
+    };
     match template.render() {
         Ok(html) => Html(html).into_response(),
         Err(e) => {
@@ -73,27 +75,44 @@ impl ConfigUpdate {
     /// # Returns
     ///
     /// `Ok(())` if the configuration is valid, or an error if validation fails
+    ///
+    /// # Errors
+    ///
+    /// This function returns an `IronShieldError` if:
+    /// - The site name is empty.
+    /// - The clock format is invalid.
+    /// - A site name or URL is empty.
+    /// - A site URL has an invalid format.
     pub fn validate(&self) -> Result<()> {
         if self.site_name.trim().is_empty() {
-            return Err(crate::error::IronShieldError::from("Site name cannot be empty"));
+            return Err(crate::error::IronShieldError::from(
+                "Site name cannot be empty",
+            ));
         }
 
         match self.clock.as_str() {
-            "24hour" | "12hour" | "none" => {},
+            "24hour" | "12hour" | "none" => {}
             _ => return Err(crate::error::IronShieldError::from("Invalid clock format")),
         }
 
         for site in &self.sites {
             if site.name.trim().is_empty() {
-                return Err(crate::error::IronShieldError::from("Site name cannot be empty"));
+                return Err(crate::error::IronShieldError::from(
+                    "Site name cannot be empty",
+                ));
             }
             if site.url.trim().is_empty() {
-                return Err(crate::error::IronShieldError::from("Site URL cannot be empty"));
+                return Err(crate::error::IronShieldError::from(
+                    "Site URL cannot be empty",
+                ));
             }
-            
+
             // Validate URL format
-            if let Err(_) = Url::parse(&site.url) {
-                return Err(crate::error::IronShieldError::from(format!("Invalid URL format: {}", site.url)));
+            if Url::parse(&site.url).is_err() {
+                return Err(crate::error::IronShieldError::from(format!(
+                    "Invalid URL format: {}",
+                    site.url
+                )));
             }
         }
 
@@ -158,16 +177,19 @@ pub async fn save_config(
         };
 
         // Write the updated configuration to the file
-        let config_json = json5::to_string(&new_config)
-            .map_err(|e| crate::error::IronShieldError::from(format!("Failed to serialize config: {e}")))?;
-        
-        fs::write(CONFIG_FILE, config_json)
-            .map_err(|e| crate::error::IronShieldError::from(format!("Failed to write config file: {e}")))?;
+        let config_json = json5::to_string(&new_config).map_err(|e| {
+            crate::error::IronShieldError::from(format!("Failed to serialize config: {e}"))
+        })?;
+
+        fs::write(CONFIG_FILE, config_json).map_err(|e| {
+            crate::error::IronShieldError::from(format!("Failed to write config file: {e}"))
+        })?;
 
         // Update the config in memory
         {
-            let mut config_guard = state.config.write()
-                .map_err(|_| crate::error::IronShieldError::from("Failed to acquire config write lock"))?;
+            let mut config_guard = state.config.write().map_err(|_| {
+                crate::error::IronShieldError::from("Failed to acquire config write lock")
+            })?;
             *config_guard = new_config;
             info!("Configuration updated successfully in memory");
         }
@@ -176,7 +198,7 @@ pub async fn save_config(
     })();
 
     match result {
-        Ok(_) => (StatusCode::OK, "Configuration saved successfully").into_response(),
+        Ok(()) => (StatusCode::OK, "Configuration saved successfully").into_response(),
         Err(e) => {
             error!("Error saving configuration: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()

@@ -34,11 +34,14 @@ pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoR
         Ok(config_guard) => {
             let config = config_guard.clone(); // Clone the config to avoid holding the lock
             drop(config_guard); // Explicitly drop the lock as soon as possible
-            
+
             // Get current UTC time from utility function
             let current_time = utils::get_current_time_string();
-            
-            let template = IndexTemplate { config, current_time };
+
+            let template = IndexTemplate {
+                config,
+                current_time,
+            };
             match template.render() {
                 Ok(html) => Html(html).into_response(),
                 Err(e) => {
