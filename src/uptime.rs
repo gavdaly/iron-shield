@@ -314,3 +314,170 @@ async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus 
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use std::collections::VecDeque;
+    use std::sync::{Arc, RwLock};
+
+    #[test]
+    fn test_uptime_status_enum() {
+        assert_eq!(format!("{:?}", UptimeStatus::Up), "Up");
+        assert_eq!(format!("{:?}", UptimeStatus::Down), "Down");
+        assert_eq!(format!("{:?}", UptimeStatus::Loading), "Loading");
+
+        // Test PartialEq implementation
+        assert_eq!(UptimeStatus::Up, UptimeStatus::Up);
+        assert_ne!(UptimeStatus::Up, UptimeStatus::Down);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_empty_history() {
+        let history = VecDeque::new();
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_all_up() {
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Up);
+        history.push_back(UptimeStatus::Up);
+        history.push_back(UptimeStatus::Up);
+
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 100.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_all_down() {
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Down);
+        history.push_back(UptimeStatus::Down);
+        history.push_back(UptimeStatus::Down);
+
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_mixed_no_loading() {
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Up);
+        history.push_back(UptimeStatus::Down);
+        history.push_back(UptimeStatus::Up);
+        history.push_back(UptimeStatus::Down);
+
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 50.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_with_loading() {
+        // Loading status should be excluded from the calculation
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Up);
+        history.push_back(UptimeStatus::Loading);
+        history.push_back(UptimeStatus::Down);
+        history.push_back(UptimeStatus::Loading);
+        history.push_back(UptimeStatus::Up);
+
+        // 2 Up out of 3 non-Loading statuses = 66.67%
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 66.67).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_all_loading() {
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Loading);
+        history.push_back(UptimeStatus::Loading);
+        history.push_back(UptimeStatus::Loading);
+
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_create_uptime_history() {
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Up);
+        history.push_back(UptimeStatus::Down);
+        history.push_back(UptimeStatus::Loading);
+
+        let uptime_history = create_uptime_history("test-site", UptimeStatus::Up, &history, 50.0);
+
+        assert_eq!(uptime_history.site_id, "test-site");
+        assert_eq!(uptime_history.status, UptimeStatus::Up);
+        assert!((uptime_history.uptime_percentage - 50.0).abs() < f64::EPSILON);
+        assert_eq!(
+            uptime_history.history,
+            vec![UptimeStatus::Up, UptimeStatus::Down, UptimeStatus::Loading]
+        );
+
+        // Check that timestamp is reasonable (within a few seconds of now)
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(uptime_history.timestamp <= current_time);
+        assert!(uptime_history.timestamp >= current_time - 10); // Allow some buffer
+    }
+
+    #[test]
+    fn test_uptime_state_creation() {
+        // Create a mock config
+        let config = Arc::new(RwLock::new(Config {
+            site_name: "Test Site".to_string(),
+            clock: crate::config::Clock::None,
+            sites: vec![],
+        }));
+
+        let history = Arc::new(RwLock::new(HashMap::new()));
+
+        let uptime_state = UptimeState { config, history };
+
+        // Verify that the state can be created without issues
+        assert!(uptime_state.config.read().is_ok());
+        assert!(uptime_state.history.read().is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_check_site_status_up() {
+        // This test requires a real server to test against
+        // For now, we can only test error conditions
+        let client = reqwest::Client::new();
+
+        // Test with a URL that should result in an error (nonexistent domain)
+        let result =
+            check_site_status(&client, "http://definitely-not-a-real-domain-12345.com").await;
+        assert_eq!(result, UptimeStatus::Down);
+    }
+
+    // Test the data structures
+    #[test]
+    fn test_uptime_history_serialization() {
+        let uptime_history = UptimeHistory {
+            site_id: "test-site".to_string(),
+            status: UptimeStatus::Up,
+            timestamp: 1_234_567_890, // Using underscores for readability
+            history: vec![UptimeStatus::Up, UptimeStatus::Down, UptimeStatus::Loading],
+            uptime_percentage: 50.0,
+        };
+
+        // Test serialization/deserialization
+        let serialized = serde_json::to_string(&uptime_history).unwrap();
+        let deserialized: UptimeHistory = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(uptime_history.site_id, deserialized.site_id);
+        assert_eq!(uptime_history.status, deserialized.status);
+        assert_eq!(uptime_history.timestamp, deserialized.timestamp);
+        assert_eq!(uptime_history.history, deserialized.history);
+        assert!(
+            (uptime_history.uptime_percentage - deserialized.uptime_percentage).abs()
+                < f64::EPSILON
+        );
+    }
+}
