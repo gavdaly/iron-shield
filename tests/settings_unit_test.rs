@@ -144,13 +144,13 @@ fn create_test_uptime_state(config_file_path: PathBuf) -> Arc<UptimeState> {
 
 #[tokio::test]
 async fn test_generate_settings_success() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = tempdir().expect("Failed to create temporary directory for test_generate_settings_success");
     let temp_config_path = temp_dir.path().join("config.json5");
     let state = create_test_uptime_state(temp_config_path);
     let response = iron_shield::settings::generate_settings(State(state)).await;
     let (parts, body) = response.into_response().into_parts();
-    let body_bytes = body.collect().await.unwrap().to_bytes();
-    let _body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+    let body_bytes = body.collect().await.expect("Failed to collect response body").to_bytes();
+    let _body_string = String::from_utf8(body_bytes.to_vec()).expect("Failed to convert response body to string");
 
     assert_eq!(parts.status, StatusCode::OK);
     // Further assertions on body_string can be added if needed, e.g., checking for template content
@@ -158,11 +158,11 @@ async fn test_generate_settings_success() {
 
 #[tokio::test]
 async fn test_save_config_success() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = tempdir().expect("Failed to create temporary directory for test_save_config_success");
     let temp_config_path = temp_dir.path().join("config.json5");
 
     // Initialize the config file with some content
-    fs::write(&temp_config_path, "{}").unwrap();
+    fs::write(&temp_config_path, "{}").expect("Failed to write initial config file in test_save_config_success");
 
     let state = create_test_uptime_state(temp_config_path.clone());
 
@@ -180,14 +180,14 @@ async fn test_save_config_success() {
     let response =
         iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
     let (parts, body) = response.into_response().into_parts();
-    let body_bytes = body.collect().await.unwrap().to_bytes();
-    let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+    let body_bytes = body.collect().await.expect("Failed to collect response body in save_config test").to_bytes();
+    let body_string = String::from_utf8(body_bytes.to_vec()).expect("Failed to convert response body to string in save_config test");
 
     assert_eq!(parts.status, StatusCode::OK);
     assert_eq!(body_string, "Configuration saved successfully");
 
     // Verify file content
-    let file_content = fs::read_to_string(&temp_config_path).unwrap();
+    let file_content = fs::read_to_string(&temp_config_path).expect("Failed to read updated config file in test_save_config_success");
     let expected_config = Config {
         site_name: "Updated Site Name".to_string(),
         clock: Clock::Hour12,
@@ -198,11 +198,11 @@ async fn test_save_config_success() {
             tags: vec!["new".to_string()],
         }],
     };
-    let expected_json = json5::to_string(&expected_config).unwrap();
+    let expected_json = json5::to_string(&expected_config).expect("Failed to serialize expected config to JSON5 in test_save_config_success");
     assert_eq!(file_content, expected_json);
 
     // Verify in-memory config update
-    let config_guard = state.config.read().unwrap(); // Removed .await
+    let config_guard = state.config.read().expect("Failed to acquire config read lock in test_save_config_success"); // Removed .await
     assert_eq!(config_guard.site_name, "Updated Site Name");
     assert_eq!(config_guard.clock, Clock::Hour12);
     assert_eq!(config_guard.sites.len(), 1);
@@ -211,7 +211,7 @@ async fn test_save_config_success() {
 
 #[tokio::test]
 async fn test_save_config_invalid_payload() {
-    let temp_dir = tempdir().unwrap();
+    let temp_dir = tempdir().expect("Failed to create temporary directory for test_save_config_invalid_payload");
     let temp_config_path = temp_dir.path().join("config.json5");
     fs::write(&temp_config_path, "{}").unwrap();
 
@@ -226,17 +226,17 @@ async fn test_save_config_invalid_payload() {
     let response =
         iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
     let (parts, body) = response.into_response().into_parts();
-    let body_bytes = body.collect().await.unwrap().to_bytes();
-    let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+    let body_bytes = body.collect().await.expect("Failed to collect response body in save_config_invalid_payload test").to_bytes();
+    let body_string = String::from_utf8(body_bytes.to_vec()).expect("Failed to convert response body to string in save_config_invalid_payload test");
 
     assert_eq!(parts.status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(body_string, "Error: Site name cannot be empty");
 
     // Verify file content is unchanged (or still initial empty json)
-    let file_content = fs::read_to_string(&temp_config_path).unwrap();
+    let file_content = fs::read_to_string(&temp_config_path).expect("Failed to read config file in test_save_config_invalid_payload");
     assert_eq!(file_content, "{}");
 
     // Verify in-memory config is unchanged
-    let config_guard = state.config.read().unwrap(); // Removed .await
+    let config_guard = state.config.read().expect("Failed to acquire config read lock in test_save_config_invalid_payload"); // Removed .await
     assert_eq!(config_guard.site_name, "Initial Site");
 }

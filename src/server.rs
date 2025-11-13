@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use tokio::signal;
+use tokio_util::sync::CancellationToken;
 use tower_http::services::ServeDir;
 use tracing::info;
 
@@ -32,7 +33,11 @@ const STATIC_DIR: &str = "static";
 /// Returns an error if:
 /// - The address string cannot be parsed into a valid `SocketAddr`
 /// - The server fails to bind to the specified address
-pub async fn run(port: u16, config_file_path_option: Option<PathBuf>) -> Result<()> {
+pub async fn run(
+    port: u16,
+    config_file_path_option: Option<PathBuf>,
+    cancel_token: CancellationToken,
+) -> Result<()> {
     tracing::info!("Initializing server");
 
     // Determine the config file path to use
@@ -71,11 +76,16 @@ pub async fn run(port: u16, config_file_path_option: Option<PathBuf>) -> Result<
 
     tracing::info!("Site launched on: http://{addr}");
 
+    // Spawn the shutdown signal handler
+    tokio::spawn(shutdown_signal(cancel_token.clone()));
+
     let listener = tokio::net::TcpListener::bind(address).await.map_err(|e| {
         crate::error::IronShieldError::Generic(format!("Failed to bind to address: {e}"))
     })?;
     if let Err(e) = axum::serve(listener, app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(async move {
+            cancel_token.cancelled().await;
+        })
         .await
     {
         return Err(crate::error::IronShieldError::Generic(format!(
@@ -88,7 +98,7 @@ pub async fn run(port: u16, config_file_path_option: Option<PathBuf>) -> Result<
 }
 
 /// A helper function that awaits a shutdown signal
-async fn shutdown_signal() {
+async fn shutdown_signal(cancel_token: CancellationToken) {
     // Handle Ctrl+C
     let ctrl_c = async {
         if let Err(e) = signal::ctrl_c().await {
@@ -118,4 +128,5 @@ async fn shutdown_signal() {
     }
 
     tracing::info!("Received shutdown signal, starting graceful shutdown");
+    cancel_token.cancel();
 }

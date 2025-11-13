@@ -1,6 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tokio_util::sync::CancellationToken;
 
 mod config;
 mod error;
@@ -39,7 +40,8 @@ async fn main() -> Result<(), IronShieldError> {
     tracing::info!("Starting Iron Shield application");
     tracing::debug!("Application initialized with tracing enabled");
 
-    server::run(port, config_file_path).await?;
+    let cancel_token = CancellationToken::new();
+    server::run(port, config_file_path, cancel_token).await?;
 
     tracing::info!("Iron Shield application shutting down");
     Ok(())
