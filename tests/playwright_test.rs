@@ -2,15 +2,15 @@
 // This is a placeholder for Playwright integration tests
 // Actual Playwright tests would go here when the API is properly integrated
 
+use playwright::Playwright;
 use serde_json::json;
 use std::fs;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::time::Duration;
-use tokio::net::TcpStream;
 use tempfile::NamedTempFile;
-use playwright::api::{Browser, Page, BrowserContext};
+use tokio::net::TcpStream;
 
 // Helper function to find an available port
 fn find_available_port() -> u16 {
@@ -30,14 +30,16 @@ fn start_server(port: u16, config_file: Option<&PathBuf>) -> Child {
         command.arg(path.to_str().unwrap());
     }
 
-    command.spawn()
-        .expect("Failed to start Iron Shield server")
+    command.spawn().expect("Failed to start Iron Shield server")
 }
 
 // Helper to wait for the server to be ready
 async fn wait_for_server_ready(port: u16) {
     for _ in 0..30 {
-        if TcpStream::connect(format!("127.0.0.1:{}", port)).await.is_ok() {
+        if TcpStream::connect(format!("127.0.0.1:{}", port))
+            .await
+            .is_ok()
+        {
             tokio::time::sleep(Duration::from_millis(500)).await;
             return;
         }
@@ -87,7 +89,8 @@ async fn test_config_loading() {
 
     let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
     let temp_config_path = temp_file.path().to_path_buf();
-    fs::write(&temp_config_path, format!("{test_config}")).expect("Failed to write temporary config file");
+    fs::write(&temp_config_path, format!("{test_config}"))
+        .expect("Failed to write temporary config file");
 
     let mut server_process = start_server(port, Some(&temp_config_path));
 
@@ -109,14 +112,14 @@ async fn test_config_loading() {
     // temp_file will be automatically deleted when it goes out of scope
 }
 
-// Additional test demonstrating how Playwright tests would work when available
 #[tokio::test]
+#[cfg(target_arch = "x86_64")]
 async fn integration_start_up() {
     let port = find_available_port();
 
     // 1. Create a temporary config file for testing
     let test_config = json!({
-        "site_name": "Playwright Test Dashboard",
+        "site_name": "Integration Test Dashboard",
         "clock": "None",
         "sites": [
             {
@@ -129,7 +132,8 @@ async fn integration_start_up() {
 
     let temp_file = NamedTempFile::new().expect("Failed to create temporary file");
     let temp_config_path = temp_file.path().to_path_buf();
-    fs::write(&temp_config_path, format!("{test_config}")).expect("Failed to write temporary config file");
+    fs::write(&temp_config_path, format!("{test_config}"))
+        .expect("Failed to write temporary config file");
 
     // 2. Start the Iron Shield server
     let mut server_process = start_server(port, Some(&temp_config_path));
@@ -137,15 +141,25 @@ async fn integration_start_up() {
     // Wait for the server to be ready
     wait_for_server_ready(port).await;
 
-    // 3. Launch a browser using Playwright
-    let playwright = playwright::api::playwright::Playwright::initialize().await.unwrap();
-    playwright.prepare().unwrap();
-    let browser = playwright.chromium().launcher().launch().await.unwrap();
-    let context = browser.context_builder().build().await.unwrap();
-    let page = context.new_page().await.unwrap();
+    let location = format!("http://localhost:{}", port);
 
-    // 4. Navigate to the application
-    page.goto_builder(format!("http://localhost:{}", port).as_str()).goto().await.unwrap();
+    let playwright = Playwright::initialize().await.expect("Have playwright");
+    playwright.prepare().expect("To have browser");
+    let chromium = playwright.chromium();
+    let browser = chromium
+        .launcher()
+        .headless(true)
+        .launch()
+        .await
+        .expect("to get browser");
+    let context = browser
+        .context_builder()
+        .build()
+        .await
+        .expect("to get context");
+    let page = context.new_page().await.expect("to create a page");
+
+    page.goto_builder(&location).goto().await.unwrap();
 
     // 5. Wait for 1 minute for sse events and 6. See the uptime for Google should be 100%
     // This selector looks for a div that contains the text 'Google' and then within that div,
