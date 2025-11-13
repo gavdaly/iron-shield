@@ -36,7 +36,8 @@ pub async fn run(port: u16, config_file_path_option: Option<PathBuf>) -> Result<
     tracing::info!("Initializing server");
 
     // Determine the config file path to use
-    let config_path = config_file_path_option.unwrap_or_else(|| std::path::Path::new(CONFIG_FILE).to_path_buf());
+    let config_path =
+        config_file_path_option.unwrap_or_else(|| std::path::Path::new(CONFIG_FILE).to_path_buf());
 
     // Create the config watcher which handles loading and watching the config file
     let config_watcher = ConfigWatcher::new(&config_path)?;

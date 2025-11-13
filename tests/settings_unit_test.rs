@@ -1,18 +1,18 @@
-use http_body_util::BodyExt; // For .collect()
 use axum::{
     extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
 };
+use http_body_util::BodyExt; // For .collect()
 use iron_shield::config::{Clock, Config, Site};
 use iron_shield::error::IronShieldError;
 use iron_shield::settings::{ConfigUpdate, SiteUpdate};
 use iron_shield::uptime::UptimeState;
+use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock; // Use std::sync::RwLock
 use tempfile::tempdir;
-use std::fs;
-use std::path::PathBuf;
 
 #[tokio::test]
 async fn test_config_update_validate_valid() {
@@ -41,7 +41,7 @@ async fn test_config_update_validate_valid() {
 #[tokio::test]
 async fn test_config_update_validate_empty_site_name() {
     let config_update = ConfigUpdate {
-        site_name: "".to_string(),
+        site_name: String::new(),
         clock: "24hour".to_string(),
         sites: vec![],
     };
@@ -73,14 +73,12 @@ async fn test_config_update_validate_empty_site_entry_name() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
-        sites: vec![
-            SiteUpdate {
-                name: "".to_string(),
-                url: "https://www.google.com".to_string(),
-                category: "Search".to_string(),
-                tags: vec![],
-            },
-        ],
+        sites: vec![SiteUpdate {
+            name: String::new(),
+            url: "https://www.google.com".to_string(),
+            category: "Search".to_string(),
+            tags: vec![],
+        }],
     };
 
     let err = config_update.validate().unwrap_err();
@@ -95,14 +93,12 @@ async fn test_config_update_validate_empty_site_entry_url() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
-        sites: vec![
-            SiteUpdate {
-                name: "Google".to_string(),
-                url: "".to_string(),
-                category: "Search".to_string(),
-                tags: vec![],
-            },
-        ],
+        sites: vec![SiteUpdate {
+            name: "Google".to_string(),
+            url: String::new(),
+            category: "Search".to_string(),
+            tags: vec![],
+        }],
     };
 
     let err = config_update.validate().unwrap_err();
@@ -117,14 +113,12 @@ async fn test_config_update_validate_invalid_site_entry_url() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
-        sites: vec![
-            SiteUpdate {
-                name: "Google".to_string(),
-                url: "invalid-url".to_string(),
-                category: "Search".to_string(),
-                tags: vec![],
-            },
-        ],
+        sites: vec![SiteUpdate {
+            name: "Google".to_string(),
+            url: "invalid-url".to_string(),
+            category: "Search".to_string(),
+            tags: vec![],
+        }],
     };
 
     let err = config_update.validate().unwrap_err();
@@ -175,17 +169,16 @@ async fn test_save_config_success() {
     let payload = ConfigUpdate {
         site_name: "Updated Site Name".to_string(),
         clock: "12hour".to_string(),
-        sites: vec![
-            SiteUpdate {
-                name: "New Site".to_string(),
-                url: "https://new.example.com".to_string(),
-                category: "Test".to_string(),
-                tags: vec!["new".to_string()],
-            },
-        ],
+        sites: vec![SiteUpdate {
+            name: "New Site".to_string(),
+            url: "https://new.example.com".to_string(),
+            category: "Test".to_string(),
+            tags: vec!["new".to_string()],
+        }],
     };
 
-    let response = iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
+    let response =
+        iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
     let (parts, body) = response.into_response().into_parts();
     let body_bytes = body.collect().await.unwrap().to_bytes();
     let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
@@ -198,14 +191,12 @@ async fn test_save_config_success() {
     let expected_config = Config {
         site_name: "Updated Site Name".to_string(),
         clock: Clock::Hour12,
-        sites: vec![
-            Site {
-                name: "New Site".to_string(),
-                url: "https://new.example.com".to_string(),
-                category: "Test".to_string(),
-                tags: vec!["new".to_string()],
-            },
-        ],
+        sites: vec![Site {
+            name: "New Site".to_string(),
+            url: "https://new.example.com".to_string(),
+            category: "Test".to_string(),
+            tags: vec!["new".to_string()],
+        }],
     };
     let expected_json = json5::to_string(&expected_config).unwrap();
     assert_eq!(file_content, expected_json);
@@ -227,12 +218,13 @@ async fn test_save_config_invalid_payload() {
     let state = create_test_uptime_state(temp_config_path.clone());
 
     let payload = ConfigUpdate {
-        site_name: "".to_string(), // Invalid site name
+        site_name: String::new(), // Invalid site name
         clock: "24hour".to_string(),
         sites: vec![],
     };
 
-    let response = iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
+    let response =
+        iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
     let (parts, body) = response.into_response().into_parts();
     let body_bytes = body.collect().await.unwrap().to_bytes();
     let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();

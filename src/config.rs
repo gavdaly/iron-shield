@@ -52,15 +52,27 @@ impl Config {
     ///
     /// Returns an error if the configuration file cannot be read or parsed
     pub fn load(config_file_path: &PathBuf) -> crate::error::Result<Self> {
-        tracing::debug!("Loading application configuration from {:?}", config_file_path);
+        tracing::debug!(
+            "Loading application configuration from {:?}",
+            config_file_path
+        );
         let config_str = fs::read_to_string(config_file_path).map_err(|e| {
-            crate::error::IronShieldError::Generic(format!("Failed to read config file {:?}: {e}", config_file_path))
+            crate::error::IronShieldError::Generic(format!(
+                "Failed to read config file {}: {e}",
+                config_file_path.display()
+            ))
         })?;
         let config: Config = json5::from_str(&config_str).map_err(|e| {
-            crate::error::IronShieldError::Generic(format!("Failed to parse config file {:?}: {e}", config_file_path))
+            crate::error::IronShieldError::Generic(format!(
+                "Failed to parse config file {}: {e}",
+                config_file_path.display()
+            ))
         })?;
 
-        tracing::info!("Configuration loaded successfully from {:?}", config_file_path);
+        tracing::info!(
+            "Configuration loaded successfully from {}",
+            config_file_path.display()
+        );
         Ok(config)
     }
 }
@@ -162,7 +174,7 @@ impl ConfigWatcher {
                 crate::error::IronShieldError::Generic(format!("Failed to watch config file: {e}"))
             })?;
 
-        info!("Started config file watcher for: {:?}", config_path);
+        info!("Started config file watcher for: {}", config_path.display());
 
         // Spawn a task to handle config reloads
         tokio::spawn({

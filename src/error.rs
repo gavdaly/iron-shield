@@ -96,42 +96,42 @@ pub type Result<T> = std::result::Result<T, IronShieldError>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io;
     use std::error::Error;
+    use std::io;
 
     #[test]
     fn test_iron_shield_error_display() {
         // Test AddressParse error
         let addr_parse_error = "invalid".parse::<std::net::IpAddr>().unwrap_err();
         let addr_error = IronShieldError::AddressParse(addr_parse_error);
-        assert!(format!("{}", addr_error).contains("Failed to parse network address"));
+        assert!(format!("{addr_error}").contains("Failed to parse network address"));
 
         // Test ServerRun error
-        let server_error = IronShieldError::ServerRun(axum::Error::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
+        let server_error = IronShieldError::ServerRun(axum::Error::new(std::io::Error::other(
             "test server error",
         )));
-        assert!(format!("{}", server_error).contains("Server runtime error"));
+        assert!(format!("{server_error}").contains("Server runtime error"));
 
         // Test ConfigRead error
         let io_error = io::Error::new(io::ErrorKind::NotFound, "File not found");
         let config_read_error = IronShieldError::ConfigRead(io_error);
-        assert!(format!("{}", config_read_error).contains("Failed to read configuration file"));
+        assert!(format!("{config_read_error}").contains("Failed to read configuration file"));
 
         // Test ConfigParse error - creating a JSON5 error by attempting to parse invalid JSON5
         let config_parse_error = IronShieldError::ConfigParse(
-            json5::from_str::<serde_json::Value>("{invalid json5")
-                .unwrap_err()
+            json5::from_str::<serde_json::Value>("{invalid json5").unwrap_err(),
         );
-        assert!(format!("{}", config_parse_error).contains("Failed to parse configuration"));
+        assert!(format!("{config_parse_error}").contains("Failed to parse configuration"));
 
         // Test JsonParse error
-        let json_parse_error = IronShieldError::JsonParse(serde_json::from_str::<serde_json::Value>("{invalid json").unwrap_err());
-        assert!(format!("{}", json_parse_error).contains("Failed to parse JSON"));
+        let json_parse_error = IronShieldError::JsonParse(
+            serde_json::from_str::<serde_json::Value>("{invalid json").unwrap_err(),
+        );
+        assert!(format!("{json_parse_error}").contains("Failed to parse JSON"));
 
         // Test Generic error
         let generic_error = IronShieldError::Generic("Test error".to_string());
-        assert!(format!("{}", generic_error).contains("Error: Test error"));
+        assert!(format!("{generic_error}").contains("Error: Test error"));
     }
 
     #[test]
@@ -149,15 +149,16 @@ mod tests {
     #[test]
     fn test_from_implementations() {
         // Test From<std::net::AddrParseError>
-        let addr_parse_error: std::net::AddrParseError = "invalid".parse::<std::net::IpAddr>().unwrap_err();
+        let addr_parse_error: std::net::AddrParseError =
+            "invalid".parse::<std::net::IpAddr>().unwrap_err();
         let iron_shield_error: IronShieldError = addr_parse_error.into();
-        assert!(matches!(iron_shield_error, IronShieldError::AddressParse(_)));
+        assert!(matches!(
+            iron_shield_error,
+            IronShieldError::AddressParse(_)
+        ));
 
         // Test From<axum::Error>
-        let axum_error = axum::Error::new(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "test server error",
-        ));
+        let axum_error = axum::Error::new(std::io::Error::other("test server error"));
         let iron_shield_error: IronShieldError = axum_error.into();
         assert!(matches!(iron_shield_error, IronShieldError::ServerRun(_)));
 
@@ -190,7 +191,7 @@ mod tests {
         let addr_parse_error = "invalid".parse::<std::net::IpAddr>().unwrap_err();
         let config_read_error = IronShieldError::AddressParse(addr_parse_error);
 
-        let debug_output = format!("{:?}", config_read_error);
+        let debug_output = format!("{config_read_error:?}");
         assert!(debug_output.contains("AddressParse"));
     }
 

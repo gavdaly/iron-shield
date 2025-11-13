@@ -2,7 +2,6 @@
 // This is a placeholder for Playwright integration tests
 // Actual Playwright tests would go here when the API is properly integrated
 
-use playwright::Playwright;
 use serde_json::json;
 use std::fs;
 use std::net::TcpListener;
@@ -36,7 +35,7 @@ fn start_server(port: u16, config_file: Option<&PathBuf>) -> Child {
 // Helper to wait for the server to be ready
 async fn wait_for_server_ready(port: u16) {
     for _ in 0..30 {
-        if TcpStream::connect(format!("127.0.0.1:{}", port))
+        if TcpStream::connect(format!("127.0.0.1:{port}"))
             .await
             .is_ok()
         {
@@ -58,7 +57,7 @@ async fn test_server_startup() {
     wait_for_server_ready(port).await;
 
     // Test that the server responds to HTTP requests
-    let response = reqwest::get(format!("http://localhost:{}", port)).await;
+    let response = reqwest::get(format!("http://localhost:{port}")).await;
     assert!(response.is_ok());
     let _status = response.unwrap().status();
     // Terminate the server process
@@ -98,7 +97,7 @@ async fn test_config_loading() {
     wait_for_server_ready(port).await;
 
     // Test that the server responds with the custom config
-    let response = reqwest::get(format!("http://localhost:{}", port)).await;
+    let response = reqwest::get(format!("http://localhost:{port}")).await;
     assert!(response.is_ok());
     let text = response.unwrap().text().await.unwrap();
     assert!(text.contains("Test Dashboard"));
@@ -115,6 +114,8 @@ async fn test_config_loading() {
 #[tokio::test]
 #[cfg(target_arch = "x86_64")]
 async fn integration_start_up() {
+    use playwright::Playwright;
+
     let port = find_available_port();
 
     // 1. Create a temporary config file for testing
