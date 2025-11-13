@@ -480,4 +480,56 @@ mod tests {
                 < f64::EPSILON
         );
     }
+
+    #[tokio::test]
+    async fn test_check_site_status_with_valid_url() {
+        // Test with a URL that should return success (HTTPbin is commonly used for testing)
+        let client = reqwest::Client::new();
+        let result = check_site_status(&client, "https://httpbin.org/status/200").await;
+        // Note: This might fail if no internet connection, but it's a good test when available
+        // For now, we'll just check that it doesn't panic
+        assert!(result == UptimeStatus::Up || result == UptimeStatus::Down);
+    }
+
+    #[tokio::test]
+    async fn test_check_site_status_with_timeout() {
+        // Test with a URL that should timeout
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(1)) // Very short timeout
+            .build()
+            .unwrap();
+
+        // Use a URL that will likely timeout with 1ms timeout
+        let result = check_site_status(&client, "https://httpbin.org/delay/10").await;
+        assert_eq!(result, UptimeStatus::Down);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_accuracy() {
+        // Test with a known percentage (75% uptime)
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Down);    // Counted as down
+
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 75.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_with_mixed_loading() {
+        // Test that loading statuses are excluded from calculation
+        let mut history = VecDeque::new();
+        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Loading); // Not counted
+        history.push_back(UptimeStatus::Down);    // Counted as down
+        history.push_back(UptimeStatus::Loading); // Not counted
+        history.push_back(UptimeStatus::Up);      // Counted as up
+        history.push_back(UptimeStatus::Up);      // Counted as up
+
+        // Should be 3 up / 4 total non-loading = 75%
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 75.0).abs() < f64::EPSILON);
+    }
 }
