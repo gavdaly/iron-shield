@@ -31,6 +31,7 @@ pub struct UptimeHistory {
 pub struct UptimeState {
     pub config: Arc<RwLock<Config>>,
     pub history: Arc<RwLock<HashMap<String, VecDeque<UptimeStatus>>>>,
+    pub config_file_path: std::path::PathBuf,
 }
 
 /// Handles the uptime monitoring stream endpoint
@@ -437,7 +438,9 @@ mod tests {
 
         let history = Arc::new(RwLock::new(HashMap::new()));
 
-        let uptime_state = UptimeState { config, history };
+        let config_file_path = std::path::PathBuf::from("config.json5");
+
+        let uptime_state = UptimeState { config, history, config_file_path };
 
         // Verify that the state can be created without issues
         assert!(uptime_state.config.read().is_ok());

@@ -1,4 +1,4 @@
-use crate::config::{Clock, Config, CONFIG_FILE};
+use crate::config::{Clock, Config};
 use crate::error::Result;
 use crate::uptime::UptimeState;
 use crate::utils;
@@ -181,7 +181,7 @@ pub async fn save_config(
             crate::error::IronShieldError::from(format!("Failed to serialize config: {e}"))
         })?;
 
-        fs::write(CONFIG_FILE, config_json).map_err(|e| {
+        fs::write(&state.config_file_path, config_json).map_err(|e| {
             crate::error::IronShieldError::from(format!("Failed to write config file: {e}"))
         })?;
 

@@ -26,3 +26,13 @@ check:
     just fmt
     just clippy
     just test
+
+# Coverage commands
+coverage:
+    cargo llvm-cov
+
+coverage-report:
+    cargo llvm-cov report --text
+
+coverage-html:
+    cargo llvm-cov --html --open

@@ -9,7 +9,7 @@ default-run = "iron_shield"
 [dependencies]
 askama = {version = "0.11.1", features = ["with-axum"]}
 askama_axum = "0.2"
-axum = "0.6"
+axum = "0.7"
 chrono = {version = "0.4", features = ["serde"]}
 json5 = "0.4"
 notify = "6.1"
@@ -19,13 +19,15 @@ serde = {version = "1.0.143", features = ["derive"]}
 serde_json = "1.0"
 tokio = {version = "1.20.1", features = ["full"]}
 tokio-stream = "0.1"
-tower-http = {version="0.4.0", features = ["fs"]}
+tower-http = {version="0.5.0", features = ["fs"]}
 tracing = "0.1"
 tracing-subscriber = {version = "0.3", features = ["env-filter"]}
 url = "2.4"
+http-body-util = "0.1"
 
 [dev-dependencies]
 playwright = "0.0.20"
 reqwest = "0.11"
 tokio-test = "0.4"
 tokio = { version = "1.0", features = ["full"] }
+tempfile = "3.3"

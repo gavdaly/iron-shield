@@ -46,6 +46,7 @@ pub async fn run(port: u16) -> Result<()> {
     let uptime_state = Arc::new(UptimeState {
         config: config_rwlock,
         history: history_map,
+        config_file_path: config_path,
     });
 
     let app = Router::new()
@@ -59,15 +60,17 @@ pub async fn run(port: u16) -> Result<()> {
     tracing::debug!("Routes configured");
 
     let addr = format!("0.0.0.0:{port}");
-    let address = &addr.parse().map_err(|e| {
+    let address = addr.parse::<std::net::SocketAddr>().map_err(|e| {
         crate::error::IronShieldError::Generic(format!("Failed to parse address: {e}"))
     })?;
     tracing::info!("Binding server to address: {address}");
 
     tracing::info!("Site launched on: http://{addr}");
 
-    if let Err(e) = axum::Server::bind(address)
-        .serve(app.into_make_service())
+    let listener = tokio::net::TcpListener::bind(address).await.map_err(|e| {
+        crate::error::IronShieldError::Generic(format!("Failed to bind to address: {e}"))
+    })?;
+    if let Err(e) = axum::serve(listener, app.into_make_service())
         .with_graceful_shutdown(shutdown_signal())
         .await
     {

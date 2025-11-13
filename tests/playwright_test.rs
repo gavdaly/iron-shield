@@ -99,8 +99,8 @@ async fn playwright_test_template() {
     // 1. Start the Iron Shield server
     // 2. Launch a browser using Playwright
     // 3. Navigate to the application
-    // 4. Perform UI interactions and assertions
-    // 5. Take screenshots if needed
+    // 4. Wait for 1 minute for sse events
+    // 5. See the uptime for Google should be 100%
     // 6. Close the browser and terminate the server
 
     // For now, we just verify that the test compiles

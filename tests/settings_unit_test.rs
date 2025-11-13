@@ -1,0 +1,250 @@
+use http_body_util::BodyExt; // For .collect()
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
+use iron_shield::config::{Clock, Config, Site};
+use iron_shield::error::IronShieldError;
+use iron_shield::settings::{ConfigUpdate, SiteUpdate};
+use iron_shield::uptime::UptimeState;
+use std::sync::Arc;
+use std::sync::RwLock; // Use std::sync::RwLock
+use tempfile::tempdir;
+use std::fs;
+use std::path::PathBuf;
+
+#[tokio::test]
+async fn test_config_update_validate_valid() {
+    let config_update = ConfigUpdate {
+        site_name: "Test Site".to_string(),
+        clock: "24hour".to_string(),
+        sites: vec![
+            SiteUpdate {
+                name: "Google".to_string(),
+                url: "https://www.google.com".to_string(),
+                category: "Search".to_string(),
+                tags: vec!["web".to_string()],
+            },
+            SiteUpdate {
+                name: "Rust-lang".to_string(),
+                url: "https://www.rust-lang.org".to_string(),
+                category: "Programming".to_string(),
+                tags: vec!["dev".to_string(), "oss".to_string()],
+            },
+        ],
+    };
+
+    assert!(config_update.validate().is_ok());
+}
+
+#[tokio::test]
+async fn test_config_update_validate_empty_site_name() {
+    let config_update = ConfigUpdate {
+        site_name: "".to_string(),
+        clock: "24hour".to_string(),
+        sites: vec![],
+    };
+
+    let err = config_update.validate().unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        IronShieldError::from("Site name cannot be empty").to_string()
+    );
+}
+
+#[tokio::test]
+async fn test_config_update_validate_invalid_clock_format() {
+    let config_update = ConfigUpdate {
+        site_name: "Test Site".to_string(),
+        clock: "invalid".to_string(),
+        sites: vec![],
+    };
+
+    let err = config_update.validate().unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        IronShieldError::from("Invalid clock format").to_string()
+    );
+}
+
+#[tokio::test]
+async fn test_config_update_validate_empty_site_entry_name() {
+    let config_update = ConfigUpdate {
+        site_name: "Test Site".to_string(),
+        clock: "24hour".to_string(),
+        sites: vec![
+            SiteUpdate {
+                name: "".to_string(),
+                url: "https://www.google.com".to_string(),
+                category: "Search".to_string(),
+                tags: vec![],
+            },
+        ],
+    };
+
+    let err = config_update.validate().unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        IronShieldError::from("Site name cannot be empty").to_string()
+    );
+}
+
+#[tokio::test]
+async fn test_config_update_validate_empty_site_entry_url() {
+    let config_update = ConfigUpdate {
+        site_name: "Test Site".to_string(),
+        clock: "24hour".to_string(),
+        sites: vec![
+            SiteUpdate {
+                name: "Google".to_string(),
+                url: "".to_string(),
+                category: "Search".to_string(),
+                tags: vec![],
+            },
+        ],
+    };
+
+    let err = config_update.validate().unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        IronShieldError::from("Site URL cannot be empty").to_string()
+    );
+}
+
+#[tokio::test]
+async fn test_config_update_validate_invalid_site_entry_url() {
+    let config_update = ConfigUpdate {
+        site_name: "Test Site".to_string(),
+        clock: "24hour".to_string(),
+        sites: vec![
+            SiteUpdate {
+                name: "Google".to_string(),
+                url: "invalid-url".to_string(),
+                category: "Search".to_string(),
+                tags: vec![],
+            },
+        ],
+    };
+
+    let err = config_update.validate().unwrap_err();
+    assert_eq!(
+        err.to_string(),
+        IronShieldError::from("Invalid URL format: invalid-url").to_string()
+    );
+}
+
+// Helper function to create a test UptimeState
+fn create_test_uptime_state(config_file_path: PathBuf) -> Arc<UptimeState> {
+    let config = Config {
+        site_name: "Initial Site".to_string(),
+        clock: Clock::Hour24,
+        sites: vec![],
+    };
+    Arc::new(UptimeState {
+        config: Arc::new(RwLock::new(config)), // Use std::sync::RwLock
+        history: Arc::new(RwLock::new(std::collections::HashMap::new())),
+        config_file_path,
+    })
+}
+
+#[tokio::test]
+async fn test_generate_settings_success() {
+    let temp_dir = tempdir().unwrap();
+    let temp_config_path = temp_dir.path().join("config.json5");
+    let state = create_test_uptime_state(temp_config_path);
+    let response = iron_shield::settings::generate_settings(State(state)).await;
+    let (parts, body) = response.into_response().into_parts();
+    let body_bytes = body.collect().await.unwrap().to_bytes();
+    let _body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+
+    assert_eq!(parts.status, StatusCode::OK);
+    // Further assertions on body_string can be added if needed, e.g., checking for template content
+}
+
+#[tokio::test]
+async fn test_save_config_success() {
+    let temp_dir = tempdir().unwrap();
+    let temp_config_path = temp_dir.path().join("config.json5");
+
+    // Initialize the config file with some content
+    fs::write(&temp_config_path, "{}").unwrap();
+
+    let state = create_test_uptime_state(temp_config_path.clone());
+
+    let payload = ConfigUpdate {
+        site_name: "Updated Site Name".to_string(),
+        clock: "12hour".to_string(),
+        sites: vec![
+            SiteUpdate {
+                name: "New Site".to_string(),
+                url: "https://new.example.com".to_string(),
+                category: "Test".to_string(),
+                tags: vec!["new".to_string()],
+            },
+        ],
+    };
+
+    let response = iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
+    let (parts, body) = response.into_response().into_parts();
+    let body_bytes = body.collect().await.unwrap().to_bytes();
+    let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+
+    assert_eq!(parts.status, StatusCode::OK);
+    assert_eq!(body_string, "Configuration saved successfully");
+
+    // Verify file content
+    let file_content = fs::read_to_string(&temp_config_path).unwrap();
+    let expected_config = Config {
+        site_name: "Updated Site Name".to_string(),
+        clock: Clock::Hour12,
+        sites: vec![
+            Site {
+                name: "New Site".to_string(),
+                url: "https://new.example.com".to_string(),
+                category: "Test".to_string(),
+                tags: vec!["new".to_string()],
+            },
+        ],
+    };
+    let expected_json = json5::to_string(&expected_config).unwrap();
+    assert_eq!(file_content, expected_json);
+
+    // Verify in-memory config update
+    let config_guard = state.config.read().unwrap(); // Removed .await
+    assert_eq!(config_guard.site_name, "Updated Site Name");
+    assert_eq!(config_guard.clock, Clock::Hour12);
+    assert_eq!(config_guard.sites.len(), 1);
+    assert_eq!(config_guard.sites[0].name, "New Site");
+}
+
+#[tokio::test]
+async fn test_save_config_invalid_payload() {
+    let temp_dir = tempdir().unwrap();
+    let temp_config_path = temp_dir.path().join("config.json5");
+    fs::write(&temp_config_path, "{}").unwrap();
+
+    let state = create_test_uptime_state(temp_config_path.clone());
+
+    let payload = ConfigUpdate {
+        site_name: "".to_string(), // Invalid site name
+        clock: "24hour".to_string(),
+        sites: vec![],
+    };
+
+    let response = iron_shield::settings::save_config(State(state.clone()), Json(payload.clone())).await;
+    let (parts, body) = response.into_response().into_parts();
+    let body_bytes = body.collect().await.unwrap().to_bytes();
+    let body_string = String::from_utf8(body_bytes.to_vec()).unwrap();
+
+    assert_eq!(parts.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body_string, "Error: Site name cannot be empty");
+
+    // Verify file content is unchanged (or still initial empty json)
+    let file_content = fs::read_to_string(&temp_config_path).unwrap();
+    assert_eq!(file_content, "{}");
+
+    // Verify in-memory config is unchanged
+    let config_guard = state.config.read().unwrap(); // Removed .await
+    assert_eq!(config_guard.site_name, "Initial Site");
+}
