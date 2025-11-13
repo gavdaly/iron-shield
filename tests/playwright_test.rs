@@ -26,7 +26,10 @@ fn start_server(port: u16, config_file: Option<&PathBuf>) -> Child {
     command.args(["run", "--", &port.to_string()]);
 
     if let Some(path) = config_file {
-        command.arg(path.to_str().unwrap());
+        command.arg(
+            path.to_str()
+                .expect("Failed to convert config file path to string"),
+        );
     }
 
     command.spawn().expect("Failed to start Iron Shield server")
@@ -59,10 +62,14 @@ async fn test_server_startup() {
     // Test that the server responds to HTTP requests
     let response = reqwest::get(format!("http://localhost:{port}")).await;
     assert!(response.is_ok());
-    let _status = response.unwrap().status();
+    let _status = response.expect("Failed to get HTTP response").status();
     // Terminate the server process
-    server_process.kill().unwrap();
-    server_process.wait().unwrap();
+    server_process
+        .kill()
+        .expect("Failed to kill server process");
+    server_process
+        .wait()
+        .expect("Failed to wait for server process to exit");
 }
 
 #[tokio::test]
@@ -99,14 +106,22 @@ async fn test_config_loading() {
     // Test that the server responds with the custom config
     let response = reqwest::get(format!("http://localhost:{port}")).await;
     assert!(response.is_ok());
-    let text = response.unwrap().text().await.unwrap();
+    let text = response
+        .expect("Failed to get HTTP response")
+        .text()
+        .await
+        .expect("Failed to get response text");
     assert!(text.contains("Test Dashboard"));
     assert!(text.contains("Google"));
     assert!(text.contains("GitHub"));
 
     // Terminate the server process
-    server_process.kill().unwrap();
-    server_process.wait().unwrap();
+    server_process
+        .kill()
+        .expect("Failed to kill server process in test_config_loading");
+    server_process
+        .wait()
+        .expect("Failed to wait for server process to exit in test_config_loading");
 
     // temp_file will be automatically deleted when it goes out of scope
 }
@@ -160,7 +175,10 @@ async fn integration_start_up() {
         .expect("to get context");
     let page = context.new_page().await.expect("to create a page");
 
-    page.goto_builder(&location).goto().await.unwrap();
+    page.goto_builder(&location)
+        .goto()
+        .await
+        .expect("Failed to navigate to page in Playwright test");
 
     // 5. Wait for 1 minute for sse events and 6. See the uptime for Google should be 100%
     // This selector looks for a div that contains the text 'Google' and then within that div,
@@ -173,9 +191,16 @@ async fn integration_start_up() {
         .expect("Google uptime did not reach 100% within 1 minute");
 
     // 7. Close the browser and terminate the server
-    browser.close().await.unwrap();
-    server_process.kill().unwrap();
-    server_process.wait().unwrap();
+    browser
+        .close()
+        .await
+        .expect("Failed to close browser in Playwright test");
+    server_process
+        .kill()
+        .expect("Failed to kill server process in final cleanup");
+    server_process
+        .wait()
+        .expect("Failed to wait for server process to exit in final cleanup");
 
     // temp_file will be automatically deleted when it goes out of scope
 }

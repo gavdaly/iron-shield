@@ -219,3 +219,107 @@ impl ConfigWatcher {
         self.config.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn default_site_name_returns_expected_value() {
+        assert_eq!(default_site_name(), "Iron Shield Dashboard");
+    }
+
+    #[test]
+    fn clock_display_formats_all_variants() {
+        assert_eq!(Clock::Hour24.to_string(), "24hour");
+        assert_eq!(Clock::Hour12.to_string(), "12hour");
+        assert_eq!(Clock::None.to_string(), "none");
+        assert_eq!(Clock::default(), Clock::None);
+    }
+
+    #[test]
+    fn config_load_parses_complete_configuration() {
+        let mut temp_file =
+            NamedTempFile::new().expect("Failed to create temporary config file for test");
+        write!(
+            temp_file,
+            r#"{{
+                site_name: "Custom Site",
+                clock: "Hour12",
+                sites: [
+                    {{
+                        name: "Docs",
+                        url: "https://example.com",
+                        category: "Reference",
+                        tags: ["docs", "reference"],
+                    }},
+                ],
+            }}"#
+        )
+        .expect("Failed to write configuration contents");
+        temp_file
+            .flush()
+            .expect("Failed to flush configuration data");
+
+        let config = Config::load(&temp_file.path().to_path_buf())
+            .expect("Expected configuration to load successfully");
+
+        assert_eq!(config.site_name, "Custom Site");
+        assert_eq!(config.clock, Clock::Hour12);
+        assert_eq!(config.sites.len(), 1);
+        assert_eq!(config.sites[0].name, "Docs");
+        assert_eq!(config.sites[0].category, "Reference");
+        assert_eq!(
+            config.sites[0].tags,
+            vec!["docs".to_string(), "reference".to_string()]
+        );
+    }
+
+    #[test]
+    fn config_load_applies_defaults_when_fields_missing() {
+        let mut temp_file =
+            NamedTempFile::new().expect("Failed to create temporary config file for defaults test");
+        write!(
+            temp_file,
+            r#"{{
+                sites: [
+                    {{
+                        name: "Example",
+                        url: "https://example.org",
+                        tags: [],
+                    }},
+                ],
+            }}"#
+        )
+        .expect("Failed to write configuration contents");
+        temp_file
+            .flush()
+            .expect("Failed to flush configuration data");
+
+        let config = Config::load(&temp_file.path().to_path_buf())
+            .expect("Expected configuration to load successfully");
+
+        assert_eq!(config.site_name, default_site_name());
+        assert_eq!(config.clock, Clock::None);
+        assert_eq!(config.sites.len(), 1);
+        assert_eq!(config.sites[0].category, "");
+    }
+
+    #[test]
+    fn config_load_returns_error_for_invalid_json() {
+        let mut temp_file =
+            NamedTempFile::new().expect("Failed to create temporary config file for error test");
+        write!(temp_file, "{{ invalid json").expect("Failed to write invalid configuration data");
+        temp_file
+            .flush()
+            .expect("Failed to flush configuration data");
+
+        let err = Config::load(&temp_file.path().to_path_buf()).expect_err("Expected load to fail");
+        assert!(
+            err.to_string().contains("Failed to parse config file"),
+            "unexpected error message: {err}"
+        );
+    }
+}

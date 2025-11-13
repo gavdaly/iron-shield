@@ -1,4 +1,3 @@
-
 use iron_shield::{
     config::{Config, Site},
     server::run,
@@ -17,8 +16,13 @@ use tokio_util::sync::CancellationToken;
 async fn find_available_port() -> u16 {
     use tokio::net::TcpListener;
     for port in 8000..9000 {
-        if let Ok(listener) = TcpListener::bind(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port)).await {
-            return listener.local_addr().expect("Failed to get local address of listener").port();
+        if let Ok(listener) =
+            TcpListener::bind(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port)).await
+        {
+            return listener
+                .local_addr()
+                .expect("Failed to get local address of listener")
+                .port();
         }
     }
     panic!("No available port found");
@@ -46,7 +50,7 @@ async fn test_server_starts_and_serves_index() {
     let config_path = config_file.path().to_path_buf();
 
     let port = find_available_port().await;
-    let server_address = format!("http://127.0.0.1:{}", port);
+    let server_address = format!("http://127.0.0.1:{port}");
     let cancel_token = CancellationToken::new();
 
     // Spawn the server in a background task
