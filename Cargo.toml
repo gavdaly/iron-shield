@@ -3,6 +3,7 @@ edition = "2021"
 name = "iron_shield"
 version = "0.1.0"
 default-run = "iron_shield"
+build = "build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -31,3 +32,9 @@ playwright = "0.0.20"
 reqwest = "0.11"
 tokio-test = "0.4"
 tempfile = "3.3"
+
+[build-dependencies]
+tokio = {version = "1.20.1", features = ["full"]}
+rspack = "0.6"
+rspack_core = "0.6"
+rspack_tasks = "0.6"

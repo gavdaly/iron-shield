@@ -1,10 +1,21 @@
+import "./style.css";
+import faviconUrl from "./favicon.svg";
+
 let clockInterval;
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("DOM fully loaded and parsed");
+  applyFavicon();
   setClock();
   initUptimeSSE();
 });
+
+function applyFavicon() {
+  const faviconLink = document.querySelector("link[rel='icon']");
+  if (faviconLink) {
+    faviconLink.href = faviconUrl;
+  }
+}
 
 function setClock() {
   console.log("setClock function called");

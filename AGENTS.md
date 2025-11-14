@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-The entrypoint lives in `src/main.rs`, which initializes the Axum server defined in `src/server.rs` and pulls helpers from `index.rs`, `config.rs`, and `sites.rs`. Templates rendered for the browser reside in `templates/`, while `static/` holds CSS, JS, and image assets served via `/static`. Runtime defaults live in `src/config.rs`; keep any sample data in `config.json5` synchronized with those structs. Cargo outputs go under `target/` and should stay untracked.
+The entrypoint lives in `src/main.rs`, which initializes the Axum server defined in `src/server.rs` and pulls helpers from `index.rs`, `config.rs`, and `sites.rs`. Templates rendered for the browser reside in `templates/`, while all frontend assets live in `frontend/src` and are bundled by Rspack into `/static`. Runtime defaults live in `src/config.rs`; keep any sample data in `config.json5` synchronized with those structs. Cargo outputs go under `target/` and should stay untracked.
 
 ## Build, Test, and Development Commands
 
@@ -18,4 +18,4 @@ Recent history favors concise, lowercase summaries (e.g. `added search engine an
 
 ## Security & Configuration Tips
 
-Avoid committing real API keys or sensitive endpoints. Configuration defaults currently live in code, so update `src/config.rs` alongside any sample `config.json5` you share. Before publishing external assets, make sure icons and scripts in `static/` are licensed for redistribution. When adding new template variables, sanitize user-provided content in Rust before handing it to Askama to prevent injection issues.
+Avoid committing real API keys or sensitive endpoints. Configuration defaults currently live in code, so update `src/config.rs` alongside any sample `config.json5` you share. Before publishing external assets, make sure files under `frontend/src` are licensed for redistribution. When adding new template variables, sanitize user-provided content in Rust before handing it to Askama to prevent injection issues.

@@ -28,11 +28,8 @@ use tokio_util::sync::CancellationToken;
 use tower_http::services::ServeDir;
 use tracing::info;
 
-/// Static files directory
-///
-/// Defines the directory where static assets (CSS, JavaScript, images) are served from.
-/// This directory is relative to the application's working directory.
-const STATIC_DIR: &str = "static";
+/// Default location for the bundled frontend assets.
+const FRONTEND_DIST_DEFAULT: &str = "frontend/dist";
 
 /// Run the web server on the specified port with graceful shutdown capabilities.
 ///
@@ -105,12 +102,18 @@ pub async fn run(
         config_file_path: config_path.clone(), // Clone for UptimeState
     });
 
+    let static_dir = resolve_static_dir();
+    info!(
+        "Serving static assets from: {}",
+        static_dir.to_string_lossy()
+    );
+
     let app = Router::new()
         .route("/", get(generate_index))
         .route("/settings", get(generate_settings))
         .route("/api/config", post(save_config))
         .route("/uptime", get(uptime_stream))
-        .nest_service("/static", ServeDir::new(STATIC_DIR))
+        .nest_service("/static", ServeDir::new(static_dir))
         .with_state(uptime_state.clone());
 
     tracing::debug!("Routes configured");
@@ -142,6 +145,12 @@ pub async fn run(
 
     tracing::info!("Server shutdown complete");
     Ok(())
+}
+
+fn resolve_static_dir() -> PathBuf {
+    std::env::var("FRONTEND_DIST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from(FRONTEND_DIST_DEFAULT))
 }
 
 /// A helper function that awaits a shutdown signal to trigger graceful shutdown.
