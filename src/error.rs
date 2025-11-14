@@ -1,28 +1,90 @@
 //! Custom error types for the Iron Shield application
 //!
 //! This module defines custom error types and implements the necessary traits
-//! to properly handle errors throughout the application.
+//! to properly handle errors throughout the application. It provides a unified
+//! error type that can represent various error conditions that may occur during
+//! the operation of the Iron Shield application.
+//!
+//! The main error type, `IronShieldError`, encapsulates different categories of
+//! errors that can occur, from configuration issues to server runtime problems.
+//! This allows for consistent error handling across the application while
+//! preserving the specific error details when needed.
 
 use std::fmt;
 
 /// Main error type for the Iron Shield application
+///
+/// This enum encapsulates all possible error types that can occur during the
+/// operation of the Iron Shield application. Each variant represents a specific
+/// category of error with its associated error type.
+///
+/// # Variants
+///
+/// * `AddressParse` - Error occurred while parsing network addresses
+/// * `ServerRun` - Error occurred during server runtime operations
+/// * `ConfigRead` - Error occurred while reading configuration files
+/// * `ConfigParse` - Error occurred while parsing configuration data
+/// * `JsonParse` - Error occurred while serializing/deserializing JSON data
+/// * `Generic` - Generic error with a string message for unspecified errors
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::error::{IronShieldError, Result};
+///
+/// fn example_function() -> Result<String> {
+///     // Simulating an error condition
+///     Err(IronShieldError::Generic("Something went wrong".to_string()))
+/// }
+///
+/// match example_function() {
+///     Ok(value) => println!("Success: {}", value),
+///     Err(IronShieldError::Generic(msg)) => eprintln!("Error: {}", msg),
+///     Err(e) => eprintln!("Unexpected error: {}", e),
+/// }
+/// ```
 #[derive(Debug)]
 pub enum IronShieldError {
-    /// Error occurred while parsing address
+    /// Error occurred while parsing network addresses
     AddressParse(std::net::AddrParseError),
     /// Error occurred while running the server
     ServerRun(axum::Error),
-    /// Error occurred while reading configuration file
+    /// Error occurred while reading configuration files
     ConfigRead(std::io::Error),
-    /// Error occurred while parsing configuration
+    /// Error occurred while parsing configuration data
     ConfigParse(json5::Error),
-    /// Error occurred while serializing/deserializing JSON
+    /// Error occurred while serializing/deserializing JSON data
     JsonParse(serde_json::Error),
-    /// Generic error with a message
+    /// Generic error with a string message for unspecified errors
     Generic(String),
 }
 
 impl fmt::Display for IronShieldError {
+    /// Formats the error for display purposes
+    ///
+    /// This implementation provides user-friendly error messages that describe
+    /// what type of error occurred and includes the underlying error details
+    /// when available. This is important for logging and debugging purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A mutable reference to a Formatter used to format the error
+    ///
+    /// # Returns
+    ///
+    /// Returns `fmt::Result` indicating whether the formatting was successful
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use iron_shield::error::IronShieldError;
+    /// use std::io;
+    ///
+    /// let io_error = io::Error::new(io::ErrorKind::NotFound, "File not found");
+    /// let error = IronShieldError::ConfigRead(io_error);
+    ///
+    /// println!("{}", error); // Displays: "Failed to read configuration file: File not found"
+    /// ```
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IronShieldError::AddressParse(e) => write!(f, "Failed to parse network address: {e}"),
@@ -36,6 +98,34 @@ impl fmt::Display for IronShieldError {
 }
 
 impl std::error::Error for IronShieldError {
+    /// Returns the lower-level source of this error, if any
+    ///
+    /// This method is important for error chaining, allowing access to the
+    /// underlying error that caused this error. For variants that wrap other
+    /// errors (like `ConfigRead`, `ServerRun`, etc.), this returns the wrapped
+    /// error. For the `Generic` variant, this returns `None` as it doesn't
+    /// wrap another error.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(error)` - If the error wraps another error that can be accessed
+    /// * `None` - If the error doesn't wrap another error (e.g., `Generic` variant)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use iron_shield::error::IronShieldError;
+    /// use std::error::Error;
+    /// use std::io;
+    ///
+    /// let io_error = io::Error::new(io::ErrorKind::NotFound, "File not found");
+    /// let error = IronShieldError::ConfigRead(io_error);
+    ///
+    /// // Check if there's an underlying error
+    /// if let Some(source) = error.source() {
+    ///     println!("Underlying error: {}", source);
+    /// }
+    /// ```
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             IronShieldError::AddressParse(e) => Some(e),
@@ -49,48 +139,161 @@ impl std::error::Error for IronShieldError {
 }
 
 impl From<std::net::AddrParseError> for IronShieldError {
+    /// Converts from a network address parsing error to `IronShieldError`
+    ///
+    /// This conversion allows network address parsing errors to be seamlessly
+    /// converted to the application's custom error type, making error handling
+    /// more consistent throughout the application.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The network address parsing error to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::AddressParse` variant containing the original error
     fn from(error: std::net::AddrParseError) -> Self {
         IronShieldError::AddressParse(error)
     }
 }
 
 impl From<axum::Error> for IronShieldError {
+    /// Converts from an Axum framework error to `IronShieldError`
+    ///
+    /// This conversion allows errors from the Axum web framework to be converted
+    /// to the application's custom error type, maintaining consistency in error
+    /// handling across all parts of the application.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The Axum error to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::ServerRun` variant containing the original error
     fn from(error: axum::Error) -> Self {
         IronShieldError::ServerRun(error)
     }
 }
 
 impl From<std::io::Error> for IronShieldError {
+    /// Converts from an IO error to `IronShieldError`
+    ///
+    /// This conversion allows input/output errors (such as file read errors)
+    /// to be seamlessly converted to the application's custom error type,
+    /// making error handling more consistent throughout the application.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The IO error to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::ConfigRead` variant containing the original error
     fn from(error: std::io::Error) -> Self {
         IronShieldError::ConfigRead(error)
     }
 }
 
 impl From<json5::Error> for IronShieldError {
+    /// Converts from a JSON5 parsing error to `IronShieldError`
+    ///
+    /// This conversion allows errors during JSON5 parsing (e.g., when loading
+    /// the configuration file) to be converted to the application's custom error type.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The JSON5 parsing error to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::ConfigParse` variant containing the original error
     fn from(error: json5::Error) -> Self {
         IronShieldError::ConfigParse(error)
     }
 }
 
 impl From<serde_json::Error> for IronShieldError {
+    /// Converts from a Serde JSON error to `IronShieldError`
+    ///
+    /// This conversion allows errors during JSON serialization/deserialization
+    /// to be converted to the application's custom error type.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The Serde JSON error to convert
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::JsonParse` variant containing the original error
     fn from(error: serde_json::Error) -> Self {
         IronShieldError::JsonParse(error)
     }
 }
 
 impl From<&str> for IronShieldError {
+    /// Converts from a string slice to `IronShieldError`
+    ///
+    /// This conversion creates a generic error with the provided string message.
+    /// It's useful for creating simple error messages without having to manually
+    /// construct the `IronShieldError::Generic` variant.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The string slice containing the error message
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::Generic` variant containing the error message
     fn from(error: &str) -> Self {
         IronShieldError::Generic(error.to_string())
     }
 }
 
 impl From<String> for IronShieldError {
+    /// Converts from a String to `IronShieldError`
+    ///
+    /// This conversion creates a generic error with the provided string message.
+    /// It's useful for creating simple error messages without having to manually
+    /// construct the `IronShieldError::Generic` variant.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - The String containing the error message
+    ///
+    /// # Returns
+    ///
+    /// Returns an `IronShieldError::Generic` variant containing the error message
     fn from(error: String) -> Self {
         IronShieldError::Generic(error)
     }
 }
 
 /// Result type alias using our custom error type
+///
+/// This type alias provides a convenient shorthand for `Result<T, IronShieldError>`
+/// throughout the application. Using this alias makes the code more concise and
+/// consistent in its error handling approach.
+///
+/// # Type Parameters
+///
+/// * `T` - The type of the value returned in the `Ok` variant
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::error::Result;
+///
+/// fn example_function() -> Result<String> {
+///     // This function returns Result<String, IronShieldError>
+///     Ok("success".to_string())
+/// }
+///
+/// match example_function() {
+///     Ok(value) => println!("Success: {}", value),
+///     Err(e) => eprintln!("Error: {}", e),
+/// }
+/// ```
 pub type Result<T> = std::result::Result<T, IronShieldError>;
 
 #[cfg(test)]

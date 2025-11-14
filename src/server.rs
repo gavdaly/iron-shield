@@ -1,3 +1,16 @@
+//! Server module for the Iron Shield dashboard application
+//!
+//! This module contains the main server functionality for the Iron Shield application.
+//! It handles setting up and running the web server, configuring routes, serving static files,
+//! and managing graceful shutdowns.
+//!
+//! The server uses Axum as the web framework and provides endpoints for:
+//! - Main dashboard page
+//! - Settings page
+//! - Configuration API
+//! - Uptime monitoring stream
+//! - Static file serving
+
 use crate::config::{ConfigWatcher, CONFIG_FILE};
 use crate::error::Result;
 use crate::index::generate_index;
@@ -16,23 +29,57 @@ use tower_http::services::ServeDir;
 use tracing::info;
 
 /// Static files directory
+///
+/// Defines the directory where static assets (CSS, JavaScript, images) are served from.
+/// This directory is relative to the application's working directory.
 const STATIC_DIR: &str = "static";
 
-/// Run the web server on the specified port.
+/// Run the web server on the specified port with graceful shutdown capabilities.
+///
+/// This function initializes the web server, sets up routes, configures static file serving,
+/// and starts listening on the specified port. It handles configuration loading through
+/// the `ConfigWatcher` which monitors the config file for changes.
+///
+/// The server serves the following endpoints:
+/// - / - Main dashboard page
+/// - /settings - Settings configuration page
+/// - /api/config - Settings API endpoint for updating configuration
+/// - /uptime - Server-Sent Events endpoint for real-time uptime updates
+/// - /static/\* - Static file serving for CSS, JS, and assets
 ///
 /// # Arguments
 ///
-/// * `port` - The port number to bind the server to
+/// * `port` - The TCP port number on which to bind the server
+/// * `config_file_path_option` - Optional path to the configuration file
+///   (uses default path if None is provided)
+/// * `cancel_token` - A cancellation token for graceful shutdown signals
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` if the server runs successfully, or an `IronShieldError` if an error occurs
+/// Returns `Ok(())` when the server shuts down gracefully, or an `IronShieldError` if an error occurs
+/// during startup, runtime, or shutdown.
 ///
 /// # Errors
 ///
-/// Returns an error if:
-/// - The address string cannot be parsed into a valid `SocketAddr`
-/// - The server fails to bind to the specified address
+/// This function returns an error if:
+/// - The configuration file cannot be loaded or watched
+/// - The server cannot bind to the specified address
+/// - The server encounters an error during serving
+///
+/// # Examples
+///
+/// ```
+/// # use tokio_util::sync::CancellationToken;
+/// # async fn example() -> Result<(), iron_shield::error::IronShieldError> {
+/// use std::path::PathBuf;
+///
+/// let cancel_token = CancellationToken::new();
+/// let config_path = Some(PathBuf::from("config.json5"));
+///
+/// iron_shield::server::run(3000, config_path, cancel_token).await?;
+/// # Ok(())
+/// # }
+/// ```
 pub async fn run(
     port: u16,
     config_file_path_option: Option<PathBuf>,
@@ -97,7 +144,25 @@ pub async fn run(
     Ok(())
 }
 
-/// A helper function that awaits a shutdown signal
+/// A helper function that awaits a shutdown signal to trigger graceful shutdown.
+///
+/// This function listens for termination signals (Ctrl+C on all platforms, SIGTERM on Unix systems)
+/// and triggers the cancellation token when a signal is received. This allows the server to
+/// perform a graceful shutdown, finishing ongoing requests before terminating.
+///
+/// # Arguments
+///
+/// * `cancel_token` - The cancellation token that will be cancelled when a shutdown signal is received
+///
+/// # Behavior
+///
+/// On Unix systems, the function handles both SIGTERM and Ctrl+C (SIGINT) signals.
+/// On non-Unix systems, it only handles Ctrl+C.
+/// When either signal is received, the function logs the event and cancels the provided token.
+///
+/// # Note
+///
+/// This function is designed to be spawned as a separate task using `tokio::spawn`.
 async fn shutdown_signal(cancel_token: CancellationToken) {
     // Handle Ctrl+C
     let ctrl_c = async {

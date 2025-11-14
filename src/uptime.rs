@@ -10,36 +10,166 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info};
 
+/// Represents the uptime status of a monitored website
+///
+/// This enum is used to track the current status of a website during uptime monitoring.
+/// It supports serialization and deserialization for API communication.
+///
+/// # Variants
+///
+/// * `Up` - The site is responding successfully to requests
+/// * `Down` - The site is not responding or returning error status codes
+/// * `Loading` - The site status is currently being checked (intermediate state)
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::uptime::UptimeStatus;
+///
+/// let status = UptimeStatus::Up;
+/// match status {
+///     UptimeStatus::Up => println!("Site is up"),
+///     UptimeStatus::Down => println!("Site is down"),
+///     UptimeStatus::Loading => println!("Checking site status..."),
+/// }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum UptimeStatus {
+    /// The site is responding successfully
     Up,
+    /// The site is not responding or returning error status codes
     Down,
+    /// The site status is currently being checked
     Loading,
 }
 
+/// Contains the historical uptime data for a single monitored site
+///
+/// This struct stores current status information along with historical data for a monitored site.
+/// It's designed for serialization to be sent via Server-Sent Events (SSE) to clients for real-time
+/// status updates.
+///
+/// # Fields
+///
+/// * `site_id` - Unique identifier for the site (typically the site name)
+/// * `status` - Current status of the site (Up, Down, or Loading)
+/// * `timestamp` - Unix timestamp when this record was created
+/// * `history` - A collection of the last 20 status checks for trend analysis
+/// * `uptime_percentage` - Calculated percentage of "up" time in the history (excluding Loading statuses)
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::uptime::{UptimeHistory, UptimeStatus};
+/// use std::collections::VecDeque;
+///
+/// let history = UptimeHistory {
+///     site_id: "example.com".to_string(),
+///     status: UptimeStatus::Up,
+///     timestamp: 1234567890,
+///     history: vec![UptimeStatus::Up, UptimeStatus::Up, UptimeStatus::Down],
+///     uptime_percentage: 66.67,
+/// };
+///
+/// println!("Site {} has {}% uptime", history.site_id, history.uptime_percentage);
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UptimeHistory {
+    /// Unique identifier for the site (typically the site name)
     pub site_id: String,
+    /// Current status of the site (Up, Down, or Loading)
     pub status: UptimeStatus,
+    /// Unix timestamp when this record was created
     pub timestamp: u64,
+    /// A collection of the last 20 status checks for trend analysis
     pub history: Vec<UptimeStatus>, // Last 20 status checks
-    pub uptime_percentage: f64,     // Percentage of "up" time in the history
+    /// Calculated percentage of "up" time in the history (excluding Loading statuses)
+    pub uptime_percentage: f64, // Percentage of "up" time in the history
 }
 
-// Shared state for the uptime service with historical data
+/// Shared state for the uptime monitoring service with historical data
+///
+/// This struct contains the shared state used by the uptime monitoring service. It provides
+/// thread-safe access to configuration and historical uptime data for all monitored sites.
+///
+/// # Fields
+///
+/// * `config` - Thread-safe access to the application configuration
+/// * `history` - Thread-safe map of site histories (`site_id` -> `VecDeque` of `UptimeStatus`)
+/// * `config_file_path` - Path to the configuration file for reloading purposes
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::uptime::UptimeState;
+/// use iron_shield::config::Config;
+/// use std::collections::HashMap;
+/// use std::sync::{Arc, RwLock};
+/// use std::collections::VecDeque;
+/// use std::path::PathBuf;
+///
+/// let config = Arc::new(RwLock::new(Config {
+///     site_name: "Test Site".to_string(),
+///     clock: iron_shield::config::Clock::None,
+///     sites: vec![],
+/// }));
+/// let history = Arc::new(RwLock::new(HashMap::new()));
+///
+/// let uptime_state = UptimeState {
+///     config,
+///     history,
+///     config_file_path: PathBuf::from("config.json5"),
+/// };
+/// ```
 pub struct UptimeState {
+    /// Thread-safe access to the application configuration
     pub config: Arc<RwLock<Config>>,
+    /// Thread-safe map of site histories (`site_id` -> `VecDeque` of `UptimeStatus`)
     pub history: Arc<RwLock<HashMap<String, VecDeque<UptimeStatus>>>>,
+    /// Path to the configuration file for reloading purposes
     pub config_file_path: std::path::PathBuf,
 }
 
-/// Handles the uptime monitoring stream endpoint
+/// Handles the uptime monitoring stream endpoint using Server-Sent Events (SSE)
+///
+/// This function creates a real-time stream of uptime status updates for all configured sites.
+/// It periodically checks the status of each site (every 5 seconds by default) and pushes updates
+/// to connected clients via Server-Sent Events. The function limits concurrent site checks to
+/// prevent overwhelming the system with too many HTTP requests at once.
+///
+/// The implementation initializes all sites with a "Loading" status and then begins periodic checks.
+/// It maintains a history of the last 20 status checks for each site and calculates the uptime
+/// percentage based on successful checks (excluding "Loading" statuses from the calculation).
+///
+/// # Arguments
+///
+/// * `state` - Shared uptime state containing configuration and historical data
+///
+/// # Returns
+///
+/// An SSE stream that continuously sends `UptimeHistory` data for all monitored sites
 ///
 /// # Panics
 ///
 /// This function might panic if `semaphore.acquire().await.unwrap()` fails.
 /// However, this should not happen in practice as the semaphore is always available.
+///
+/// # Examples
+///
+/// Using this in an Axum router:
+///
+/// ```rust,no_run
+/// use axum::{Router, routing::get};
+/// use iron_shield::uptime::{uptime_stream, UptimeState};
+/// use std::sync::{Arc, RwLock};
+/// use std::collections::HashMap;
+/// use std::collections::VecDeque;
+///
+/// // Assuming you have an uptime_state set up
+/// let app = Router::new()
+///     .route("/uptime", get(uptime_stream));
+/// ```
 #[allow(clippy::too_many_lines)]
 pub async fn uptime_stream(
     State(state): State<Arc<UptimeState>>,
@@ -247,9 +377,27 @@ pub async fn uptime_stream(
     Sse::new(stream)
 }
 
-/// Helper function to calculate uptime percentage
-/// Excludes Loading status from the calculation to avoid artificially reducing the percentage
-fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64 {
+/// Helper function to calculate the uptime percentage based on site history
+///
+/// This function calculates the percentage of time a site has been up based on its history,
+/// excluding `Loading` statuses from the calculation to avoid artificially reducing the
+/// percentage during initialization or active checking periods.
+///
+/// # Arguments
+///
+/// * `site_history` - A reference to a `VecDeque` containing the history of uptime statuses
+///
+/// # Returns
+///
+/// The uptime percentage as a floating-point number between 0.0 and 100.0
+///
+/// # Note
+///
+/// The calculation excludes `Loading` statuses to provide a more accurate representation
+/// of actual uptime, since Loading is an intermediate state during checks rather than
+/// an indicator of site availability.
+#[must_use]
+pub fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64 {
     let up_count = site_history
         .iter()
         .filter(|&&s| s == UptimeStatus::Up)
@@ -271,7 +419,22 @@ fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64 {
     }
 }
 
-/// Helper function to create uptime history data
+/// Helper function to create a `UptimeHistory` instance with current data
+///
+/// This function creates a new `UptimeHistory` struct populated with the current status,
+/// timestamp, historical data, and calculated uptime percentage for a specific site.
+///
+/// # Arguments
+///
+/// * `site_name` - The unique identifier for the site
+/// * `current_status` - The current uptime status to record
+/// * `site_history` - The historical uptime data for this site
+/// * `uptime_percentage` - The calculated uptime percentage
+///
+/// # Returns
+///
+/// A new `UptimeHistory` instance with the provided data and the current timestamp
+///
 fn create_uptime_history(
     site_name: &str,
     current_status: UptimeStatus,
@@ -290,7 +453,25 @@ fn create_uptime_history(
     }
 }
 
-/// Helper function to check site status
+/// Helper function to check the status of a website
+///
+/// This function performs an HTTP HEAD request to the specified URL and determines
+/// the uptime status based on the response. It handles timeouts and connection errors,
+/// returning `UptimeStatus::Down` for any failure condition.
+///
+/// # Arguments
+///
+/// * `client` - A reqwest HTTP client to use for the request
+/// * `url` - The URL of the site to check
+///
+/// # Returns
+///
+/// An `UptimeStatus` value indicating whether the site is up, down, or had an error during check
+///
+/// # Note
+///
+/// The function uses a timeout of 10 seconds for the request. It returns `UptimeStatus::Down`
+/// for any request failure, including timeouts, connection errors, or non-success HTTP status codes.
 async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus {
     debug!("Checking site status: {url}");
     match client

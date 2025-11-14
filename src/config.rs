@@ -7,12 +7,46 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 /// Default configuration file name
+///
+/// This constant defines the default name for the configuration file.
+/// The application expects to find a file with this name in the root directory.
 pub const CONFIG_FILE: &str = "config.json5";
 
 /// Application configuration structure
 ///
-/// Contains all configuration parameters for the Iron Shield dashboard
-#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+/// Contains all configuration parameters for the Iron Shield dashboard.
+/// This struct supports serialization and deserialization for JSON5 format
+/// and provides default values for optional fields.
+///
+/// # Fields
+///
+/// * `site_name` - The name of the site displayed in the page title
+/// * `clock` - The format in which to display the clock
+/// * `sites` - A vector of bookmarked sites to display on the dashboard
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::config::{Config, Clock};
+/// use iron_shield::config::Site;
+///
+/// let config = Config {
+///     site_name: "My Dashboard".to_string(),
+///     clock: Clock::Hour24,
+///     sites: vec![
+///         Site {
+///             name: "Google".to_string(),
+///             url: "https://google.com".to_string(),
+///             category: "Search".to_string(),
+///             tags: vec!["important".to_string()],
+///             uptime_percentage: 0.0, // Not required when initializing manually
+///         }
+///     ],
+/// };
+///
+/// assert_eq!(config.site_name, "My Dashboard");
+/// ```
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
     /// Name of the site displayed in the page title
     #[serde(default = "default_site_name")]
@@ -27,7 +61,33 @@ pub struct Config {
 
 /// Represents a bookmarked website in the dashboard
 ///
-/// Contains the essential information for displaying and accessing a bookmarked site
+/// Contains the essential information for displaying and accessing a bookmarked site.
+/// This struct supports serialization and deserialization for JSON5 format.
+///
+/// # Fields
+///
+/// * `name` - The display name for the site shown in the UI
+/// * `url` - The URL of the site to link to
+/// * `category` - An optional category for grouping sites (defaults to empty string)
+/// * `tags` - A vector of tags for categorization and filtering
+/// * `uptime_percentage` - The uptime percentage for display in the UI (not in config file)
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::config::Site;
+///
+/// let site = Site {
+///     name: "Google".to_string(),
+///     url: "https://google.com".to_string(),
+///     category: "Search Engines".to_string(),
+///     tags: vec!["search".to_string(), "important".to_string()],
+///     uptime_percentage: 99.9,
+/// };
+///
+/// assert_eq!(site.name, "Google");
+/// assert_eq!(site.url, "https://google.com");
+/// ```
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Site {
     /// Display name for the site
@@ -39,18 +99,60 @@ pub struct Site {
     pub category: String,
     /// List of tags for categorization and filtering
     pub tags: Vec<String>,
+    /// The uptime percentage for display in the UI (not in config file)
+    /// This field is populated at runtime with data from the uptime monitoring system
+    #[serde(default, skip_serializing, skip_deserializing)]
+    pub uptime_percentage: f64,
+}
+
+impl Default for Config {
+    /// Provides a default configuration with pre-filled values
+    ///
+    /// The default configuration includes:
+    /// - Site name: "Iron Shield Dashboard" (using the `default_site_name` function)
+    /// - Clock: `Clock::None` (no clock displayed)
+    /// - Sites: An empty vector of sites
+    fn default() -> Self {
+        Config {
+            site_name: default_site_name(),
+            clock: Clock::None,
+            sites: Vec::new(),
+        }
+    }
 }
 
 impl Config {
-    /// Load the application configuration from the config.json5 file.
+    /// Load the application configuration from the config.json5 file
+    ///
+    /// This method reads the specified configuration file and parses it as JSON5 format
+    /// into a Config struct. It handles errors for file reading and parsing, providing
+    /// appropriate error messages with context about the file that failed to load.
+    ///
+    /// # Arguments
+    ///
+    /// * `config_file_path` - The path to the configuration file to load
     ///
     /// # Returns
     ///
-    /// Returns the loaded Config if successful, or an `IronShieldError` if an error occurs
+    /// Returns `Ok(Config)` if the configuration was successfully loaded and parsed,
+    /// or an `IronShieldError` if an error occurs during reading or parsing.
     ///
     /// # Errors
     ///
-    /// Returns an error if the configuration file cannot be read or parsed
+    /// This function returns an error if:
+    /// - The configuration file cannot be read (e.g., file doesn't exist, no permissions)
+    /// - The configuration file contains invalid JSON5 syntax
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use iron_shield::config::Config;
+    /// use std::path::PathBuf;
+    ///
+    /// // This would load a real config file in practice
+    /// // let config_path = PathBuf::from("config.json5");
+    /// // let config = Config::load(&config_path).unwrap();
+    /// ```
     pub fn load(config_file_path: &PathBuf) -> crate::error::Result<Self> {
         tracing::debug!(
             "Loading application configuration from {:?}",
@@ -78,13 +180,42 @@ impl Config {
 }
 
 /// Provides a default site name if not specified in config
+///
+/// This function returns the default site name used when the configuration doesn't
+/// specify one. It's used by the serde `default` attribute on the `site_name` field.
+///
+/// # Returns
+///
+/// Returns the default site name as a String: "Iron Shield Dashboard"
 fn default_site_name() -> String {
     "Iron Shield Dashboard".to_string()
 }
 
 /// Clock format options
 ///
-/// Defines the format in which to display the time on the dashboard
+/// Defines the format in which to display the time on the dashboard.
+/// The enum supports serialization and deserialization for configuration persistence.
+///
+/// # Variants
+///
+/// * `None` - No clock is displayed on the dashboard
+/// * `Hour24` - Time is displayed in 24-hour format (e.g., 13:00)
+/// * `Hour12` - Time is displayed in 12-hour format with AM/PM (e.g., 1:00 PM)
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::config::Clock;
+///
+/// let clock_format = Clock::Hour24;
+/// match clock_format {
+///     Clock::None => println!("No clock displayed"),
+///     Clock::Hour24 => println!("Using 24-hour format"),
+///     Clock::Hour12 => println!("Using 12-hour format"),
+/// }
+///
+/// assert_eq!(clock_format, Clock::Hour24);
+/// ```
 #[derive(Debug, Default, Deserialize, Serialize, PartialEq, Clone)]
 pub enum Clock {
     /// No clock displayed
@@ -99,13 +230,29 @@ pub enum Clock {
 impl std::fmt::Display for Clock {
     /// Formats the Clock enum to its string representation
     ///
+    /// This implementation allows the Clock enum to be converted to its string representation,
+    /// which is used for serialization and in API responses. The mapping is:
+    /// - `Clock::Hour24` becomes "24hour"
+    /// - `Clock::Hour12` becomes "12hour"
+    /// - `Clock::None` becomes "none"
+    ///
     /// # Arguments
     ///
-    /// * `f` - Formatter to write the string to
+    /// * `f` - The formatter to write the string representation to
     ///
     /// # Returns
     ///
-    /// Result of the formatting operation
+    /// Returns `std::fmt::Result` indicating success or failure of the formatting operation
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use iron_shield::config::Clock;
+    ///
+    /// assert_eq!(Clock::Hour24.to_string(), "24hour");
+    /// assert_eq!(Clock::Hour12.to_string(), "12hour");
+    /// assert_eq!(Clock::None.to_string(), "none");
+    /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Clock::Hour24 => f.write_str("24hour"),
@@ -116,19 +263,74 @@ impl std::fmt::Display for Clock {
 }
 
 /// A wrapper around Config that provides interior mutability and file watching capabilities
+///
+/// This struct handles loading the configuration file and automatically reloading it
+/// when changes are detected. It uses Rust's `notify` crate to monitor the filesystem
+/// for changes to the configuration file.
+///
+/// The `ConfigWatcher` maintains an Arc<`RwLock`<Config>> for thread-safe access to the
+/// configuration from multiple parts of the application. When the config file changes,
+/// it automatically reloads the configuration in the background.
+///
+/// # Fields
+///
+/// * `config` - The configuration wrapped in Arc<`RwLock`<>> for thread-safe access
+/// * `_watcher` - The file watcher that monitors the config file for changes (kept to prevent dropping)
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::config::ConfigWatcher;
+/// use std::path::PathBuf;
+///
+/// // This would work with a real config file in practice
+/// // let config_path = PathBuf::from("config.json5");
+/// // let config_watcher = ConfigWatcher::new(&config_path).unwrap();
+/// // let config = config_watcher.get_config();
+/// ```
 pub struct ConfigWatcher {
     /// The actual configuration wrapped in `RwLock` for interior mutability
     pub config: Arc<RwLock<Config>>,
+    /// The file system watcher that automatically reloads config on changes
+    /// Kept as a field to ensure it stays alive during the lifetime of `ConfigWatcher`
     _watcher: notify::RecommendedWatcher, // Keep watcher alive via ownership
 }
 
 impl ConfigWatcher {
     /// Create a new `ConfigWatcher` by loading the initial configuration and setting up a file watcher
     ///
+    /// This function loads the configuration from the specified file and starts a file watcher
+    /// to automatically reload the configuration when changes are detected. The configuration
+    /// is loaded into an `RwLock` to allow safe concurrent access from multiple threads.
+    ///
+    /// The function spawns an asynchronous task that listens for file change events and
+    /// reloads the configuration when the file is modified, created, or removed.
+    ///
+    /// # Arguments
+    ///
+    /// * `config_path` - The path to the configuration file to watch and load
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(ConfigWatcher)` with the loaded configuration and active file watcher,
+    /// or an `IronShieldError` if loading or setting up the watcher fails.
+    ///
     /// # Errors
     ///
-    /// This function will return an error if the configuration file cannot be read or parsed,
-    /// or if the file watcher cannot be set up.
+    /// This function will return an error if:
+    /// - The configuration file cannot be read or parsed (using `Config::load`)
+    /// - The file watcher cannot be created or set up to watch the specified file
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use iron_shield::config::ConfigWatcher;
+    /// use std::path::PathBuf;
+    ///
+    /// // This would work with a real config file in practice
+    /// // let config_path = PathBuf::from("config.json5");
+    /// // let config_watcher = ConfigWatcher::new(&config_path).unwrap();
+    /// ```
     pub fn new(config_path: &PathBuf) -> crate::error::Result<Self> {
         // Load initial configuration
         let config = Config::load(config_path)?;
@@ -214,6 +416,37 @@ impl ConfigWatcher {
     }
 
     /// Get a clone of the Arc<`RwLock`<Config>> for sharing with other components
+    ///
+    /// This method provides access to the shared configuration by returning a clone
+    /// of the Arc<wrapped around the `RwLock`<Config>>. This allows multiple parts of
+    /// the application to safely access and read the configuration concurrently.
+    ///
+    /// Since the return value is wrapped in Arc and `RwLock`, callers can use
+    /// `read().unwrap()` to read the config or `write().unwrap()` to modify it
+    /// (though modifications should typically go through the `ConfigWatcher` mechanism).
+    ///
+    /// # Returns
+    ///
+    /// Returns an `Arc<RwLock<Config>>` that can be shared across threads safely.
+    /// The Arc allows multiple owners of the same configuration data, while the
+    /// `RwLock` ensures safe concurrent access.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use iron_shield::config::ConfigWatcher;
+    /// use std::path::PathBuf;
+    ///
+    /// // Example of how to use the returned config
+    /// // let config_path = PathBuf::from("config.json5");
+    /// // let config_watcher = ConfigWatcher::new(&config_path).unwrap();
+    /// // let shared_config = config_watcher.get_config();
+    /// //
+    /// // {
+    /// //     let config_guard = shared_config.read().unwrap();
+    /// //     println!("Site name: {}", config_guard.site_name);
+    /// // }
+    /// ```
     #[must_use]
     pub fn get_config(&self) -> Arc<RwLock<Config>> {
         self.config.clone()
@@ -321,5 +554,70 @@ mod tests {
             err.to_string().contains("Failed to parse config file"),
             "unexpected error message: {err}"
         );
+    }
+
+    #[test]
+    fn config_load_returns_error_for_nonexistent_file() {
+        let nonexistent_path = PathBuf::from("/nonexistent/config.json5");
+
+        let err = Config::load(&nonexistent_path).expect_err("Expected load to fail");
+        assert!(
+            err.to_string().contains("Failed to read config file"),
+            "unexpected error message: {err}"
+        );
+    }
+
+    #[test]
+    fn site_creation_with_all_fields() {
+        let site = Site {
+            name: "Test Site".to_string(),
+            url: "https://test.com".to_string(),
+            category: "Test Category".to_string(),
+            tags: vec!["test".to_string(), "example".to_string()],
+            uptime_percentage: 99.5,
+        };
+
+        assert_eq!(site.name, "Test Site");
+        assert_eq!(site.url, "https://test.com");
+        assert_eq!(site.category, "Test Category");
+        assert_eq!(site.tags, vec!["test".to_string(), "example".to_string()]);
+        assert!((site.uptime_percentage - 99.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn site_creation_with_default_category() {
+        let site = Site {
+            name: "Test Site".to_string(),
+            url: "https://test.com".to_string(),
+            category: String::default(), // This will use the serde default
+            tags: vec![],
+            uptime_percentage: Default::default(), // This uses the serde default (0.0)
+        };
+
+        assert_eq!(site.category, "");
+        assert!((site.uptime_percentage - 0.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn config_default_values() {
+        let config = Config::default();
+
+        assert_eq!(config.site_name, "Iron Shield Dashboard");
+        assert_eq!(config.clock, Clock::None);
+        assert!(config.sites.is_empty());
+    }
+
+    #[test]
+    fn site_default_uptime_percentage() {
+        // Create a blank site and check that uptime_percentage defaults to 0.0
+        let site = Site {
+            name: "Test Site".to_string(),
+            url: "https://example.com".to_string(),
+            category: "Test".to_string(),
+            tags: vec![],
+            uptime_percentage: Default::default(),
+        };
+
+        assert!((site.uptime_percentage - 0.0).abs() < f64::EPSILON);
     }
 }

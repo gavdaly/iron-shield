@@ -11,21 +11,87 @@ use std::sync::Arc;
 
 /// Template structure for the index page
 ///
-/// Contains the configuration data needed to render the dashboard
+/// This struct is used by the Askama templating engine to render the main dashboard page.
+/// It contains all the necessary data needed to populate the HTML template, including
+/// the application configuration and the current time for display purposes.
+///
+/// # Fields
+///
+/// * `config` - The application configuration containing site name, clock format, and monitored sites
+/// * `current_time` - The current UTC time as a formatted string for display in the template
+///
+/// # Examples
+///
+/// ```
+/// use iron_shield::config::{Config, Clock, Site};
+/// use iron_shield::index::IndexTemplate;
+/// use iron_shield::utils;
+///
+/// let config = Config {
+///     site_name: "My Dashboard".to_string(),
+///     clock: Clock::Hour24,
+///     sites: vec![Site {
+///         name: "Example".to_string(),
+///         url: "https://example.com".to_string(),
+///         category: "Web".to_string(),
+///         tags: vec!["important".to_string()],
+///         uptime_percentage: 99.5,
+///     }],
+/// };
+///
+/// let current_time = utils::get_current_time_string();
+/// // Note: IndexTemplate is used internally by the generate_index function
+/// // and is not typically constructed directly in user code
+/// ```
 #[derive(Template)]
 #[template(path = "index.html")]
 pub struct IndexTemplate {
-    /// Configuration data for the dashboard
+    /// Application configuration containing site information and settings
     config: crate::config::Config,
-    /// Current UTC time as a formatted string
+    /// Current UTC time as a formatted string for display in the template
     current_time: String,
 }
 
 /// Generates the index template with loaded configuration
 ///
+/// This function handles the main page request by retrieving the current configuration
+/// from shared state, formatting the current time, and rendering the index template.
+/// It's designed to be used as an Axum handler for the main dashboard endpoint.
+///
+/// The function acquires a read lock on the shared configuration, clones the data
+/// to avoid holding the lock during template rendering, and then generates the
+/// appropriate HTML response based on the configuration and current time.
+///
+/// # Arguments
+///
+/// * `State(state)` - The uptime state containing the shared configuration
+///
 /// # Returns
 ///
-/// An HTML response with the index template or an error response
+/// An HTML response with the rendered index template, or an error response if
+/// the configuration could not be accessed or if template rendering failed.
+///
+/// # Errors
+///
+/// This function returns an HTTP 500 error response if:
+/// - The configuration read lock cannot be acquired
+/// - The template cannot be rendered
+///
+/// # Examples
+///
+/// Using this in an Axum router:
+///
+/// ```rust,no_run
+/// use axum::{Router, routing::get};
+/// use iron_shield::index::generate_index;
+/// use iron_shield::uptime::UptimeState;
+/// use std::sync::{Arc, RwLock};
+/// use std::collections::HashMap;
+///
+/// // Assuming you have an uptime_state set up
+/// let app = Router::new()
+///     .route("/", get(generate_index));
+/// ```
 pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoResponse {
     tracing::debug!("Generating index template");
 
@@ -74,6 +140,19 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::RwLock;
 
+    /// Helper function to build a configuration for testing
+    ///
+    /// Creates a simple configuration with a given site name and clock format,
+    /// including a single example site for testing purposes.
+    ///
+    /// # Arguments
+    ///
+    /// * `site_name` - The name to use for the test site
+    /// * `clock` - The clock format to use in the test configuration
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Config` instance suitable for testing
     fn build_config(site_name: &str, clock: Clock) -> Config {
         Config {
             site_name: site_name.to_string(),
@@ -83,10 +162,23 @@ mod tests {
                 url: "https://docs.example.com".to_string(),
                 category: "Reference".to_string(),
                 tags: vec!["docs".to_string()],
+                uptime_percentage: 99.9,
             }],
         }
     }
 
+    /// Helper function to build an uptime state for testing
+    ///
+    /// Creates an uptime state containing the given configuration wrapped in
+    /// the necessary Arc and `RwLock` structures for sharing between threads.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The configuration to wrap in the uptime state
+    ///
+    /// # Returns
+    ///
+    /// Returns an `Arc<UptimeState>` instance suitable for testing
     fn build_state(config: Config) -> Arc<UptimeState> {
         Arc::new(UptimeState {
             config: Arc::new(RwLock::new(config)),
@@ -96,6 +188,11 @@ mod tests {
     }
 
     #[test]
+    /// Test that the index template correctly renders site name and clock settings
+    ///
+    /// This test verifies that the template properly includes the site name in the title,
+    /// respects the clock format setting, and includes the site URL in the output.
+    /// It ensures that basic template functionality works as expected.
     fn index_template_renders_site_name_and_clock() {
         let config = build_config("Test Dashboard", Clock::Hour12);
         let template = IndexTemplate {
@@ -122,6 +219,11 @@ mod tests {
     }
 
     #[tokio::test]
+    /// Test that the `generate_index` function returns a proper HTML response
+    ///
+    /// This async test verifies that the `generate_index` function properly handles
+    /// requests and returns valid HTML responses with the correct site information.
+    /// It checks both the status code and content of the response.
     async fn generate_index_returns_html_response() {
         let config = build_config("Async Dashboard", Clock::Hour24);
         let state = build_state(config);

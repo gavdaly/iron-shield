@@ -210,6 +210,7 @@ async fn test_save_config_success() {
             url: "https://new.example.com".to_string(),
             category: "Test".to_string(),
             tags: vec!["new".to_string()],
+            uptime_percentage: 0.0,
         }],
     };
     let expected_json = json5::to_string(&expected_config)

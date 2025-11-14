@@ -40,6 +40,7 @@ async fn test_server_starts_and_serves_index() {
             url: "http://example.com".to_string(),
             category: "Test".to_string(),
             tags: vec!["test".to_string()],
+            uptime_percentage: 0.0,
         }],
     };
     let config_content =
