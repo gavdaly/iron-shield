@@ -41,17 +41,30 @@ function convertInitialUTCToLocal(timeElement) {
     // Create a date object from the time string
     // This assumes only the time (HH:MM:SS) is provided, so we'll use today's date
     const now = new Date();
-    const [hours, minutes, seconds] = utcTimeString.split(':').map(Number);
-    console.log("Parsed time components:", {hours, minutes, seconds});
+    const [hours, minutes, seconds] = utcTimeString.split(":").map(Number);
+    console.log("Parsed time components:", { hours, minutes, seconds });
 
     // Create a date object with UTC time
-    const utcDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, seconds));
+    const utcDate = new Date(
+      Date.UTC(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        hours,
+        minutes,
+        seconds,
+      ),
+    );
 
     // Convert to local time
     const localHours = utcDate.getHours();
-    const localMinutes = utcDate.getMinutes().toString().padStart(2, '0');
-    const localSeconds = utcDate.getSeconds().toString().padStart(2, '0');
-    console.log("Local time components:", {localHours, localMinutes, localSeconds});
+    const localMinutes = utcDate.getMinutes().toString().padStart(2, "0");
+    const localSeconds = utcDate.getSeconds().toString().padStart(2, "0");
+    console.log("Local time components:", {
+      localHours,
+      localMinutes,
+      localSeconds,
+    });
 
     // Format based on the clock format
     const format = timeElement.dataset.format;
@@ -83,7 +96,7 @@ function updateTimeAndBackground(timeElement, data) {
   let minutes = ("0" + now.getMinutes()).slice(-2);
   let seconds = ("0" + now.getSeconds()).slice(-2);
 
-  console.log("Current time components:", {hours, minutes, seconds});
+  console.log("Current time components:", { hours, minutes, seconds });
 
   // Update time display
   if (data === "12hour") {
@@ -156,7 +169,10 @@ function initUptimeSSE() {
               console.log("Found matching site card for", uptimeInfo.site_id);
               const uptimeElement = card.querySelector(".uptime");
               if (uptimeElement) {
-                console.log("Updating uptime element status:", uptimeInfo.status);
+                console.log(
+                  "Updating uptime element status:",
+                  uptimeInfo.status,
+                );
                 // Update the uptime element based on status
                 uptimeElement.className = `uptime ${uptimeInfo.status}`;
 
@@ -164,13 +180,20 @@ function initUptimeSSE() {
                 let statusText =
                   uptimeInfo.status.charAt(0).toUpperCase() +
                   uptimeInfo.status.slice(1);
-                const uptimePercentage = uptimeInfo.uptime_percentage.toFixed(1);
+                const uptimePercentage =
+                  uptimeInfo.uptime_percentage.toFixed(1);
 
                 // Add status indicator and percentage
-                uptimeElement.innerHTML = `<span>●</span> ${statusText} (${uptimePercentage}%)`;
-                console.log("Updated uptime element HTML:", uptimeElement.innerHTML);
+                uptimeElement.innerHTML = `<span class="status-text">${statusText}</span><span class="uptime-percentage">${uptimePercentage}%</span>`;
+                console.log(
+                  "Updated uptime element HTML:",
+                  uptimeElement.innerHTML,
+                );
               } else {
-                console.warn("Uptime element not found in card for", uptimeInfo.site_id);
+                console.warn(
+                  "Uptime element not found in card for",
+                  uptimeInfo.site_id,
+                );
               }
             }
           }

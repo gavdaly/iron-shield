@@ -1,14 +1,12 @@
-<div
+<a
+    href="{{ site.url }}"
+    role="link"
+    aria-label="Visit {{ site.name }}"
     class="site-card {% for tag in site.tags %}{{ tag }}{% endfor %}"
     role="listitem"
 >
-    <a href="{{ site.url }}" role="link" aria-label="Visit {{ site.name }}">
-        <span>{{ site.name }}</span>
-    </a>
-    <div
-        class="uptime"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-    ></div>
-</div>
+    <span>{{ site.name }}</span>
+    <div class="uptime" role="status" aria-live="polite" aria-atomic="true">
+        {{ site.uptime_percentage }}
+    </div>
+</a>
