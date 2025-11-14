@@ -20,10 +20,10 @@ The application follows a modular design with the following components:
 - `error.rs`: Error handling and management
 - `lib.rs`: Library module containing shared functionality
 
-### Static Assets
+### Frontend Assets
 
-- `static/`: Contains CSS and JavaScript files for frontend styling and interactivity
-- `templates/`: Contains Askama templates for server-side rendering
+- `frontend/src`: Source for JavaScript, CSS, and icons bundled via Rspack
+- `templates/`: Askama templates for server-side rendering
 
 ### Dependencies
 
@@ -124,12 +124,13 @@ To add more integration tests:
 
 ### Adding Playwright Tests
 
-When the Playwright.rs API for Rust is fully ready for use, you can add browser automation tests by:
+The initial attempt to implement browser automation tests using Playwright.rs faced compatibility issues with ARM64 architecture, specifically with Chromium not being supported on macOS ARM64. The current integration test has been modified to use HTTP requests to verify functionality instead of browser automation.
 
-1. Adding the necessary Playwright dependency with appropriate features
-2. Using the async API to launch browsers and interact with the UI
-3. Performing UI assertions and interactions
-4. Taking screenshots for visual regression testing if needed
+If browser automation is required in the future:
+
+1. Consider updating to a newer version of Playwright for Rust that has better ARM64 support
+2. Use an alternative browser automation library that supports ARM64
+3. Implement browser-based tests that can run in CI environments
 
 ### Important Notes
 
@@ -188,9 +189,13 @@ iron_shield/
 │   └─── lib.rs         # Library module with shared functionality
 ├── templates/          # HTML templates
 │   └── index.html      # Main page template
-└── static/             # Static assets
-│   ├── style.css       # CSS styling
-│   └── script.js       # Client-side JavaScript
+├── frontend/           # Frontend assets bundled by Rspack
+│   └── src/
+│       ├── index.js    # Client-side JavaScript entry
+│       ├── style.css   # Shared styling imported by the bundle
+│       └── favicon.svg # Dashboard icon
+├── build.rs            # Rspack build script
+└── QWEN.md            # This documentation file
 └── QWEN.md            # This documentation file
 ```
 
