@@ -1,7 +1,13 @@
+/**
+ * Utilities for rendering and updating the Iron Shield dashboard clock.
+ */
 export type ClockFormat = "12hour" | "24hour";
 
 let clockInterval: number | undefined;
 
+/**
+ * Initialize the live clock and start ticking once per second.
+ */
 export function initClock(): void {
   const timeElement = document.getElementById("time");
   if (!(timeElement instanceof HTMLElement)) {
@@ -17,6 +23,9 @@ export function initClock(): void {
   }, 1000);
 }
 
+/**
+ * Update the clock text and time-of-day background based on the current time.
+ */
 function updateTimeAndBackground(
   element: HTMLElement,
   format: ClockFormat,
@@ -26,6 +35,9 @@ function updateTimeAndBackground(
   updateTimeOfDayBackground(now);
 }
 
+/**
+ * Format hours/minutes for either 12-hour or 24-hour display.
+ */
 function formatTime(
   hours: number,
   minutes: number,
@@ -46,6 +58,9 @@ function formatTime(
   return `${paddedHours}:${paddedMinutes}`;
 }
 
+/**
+ * Apply the data-time attribute used for background gradients.
+ */
 function updateTimeOfDayBackground(date: Date): void {
   const hour = date.getHours();
 
@@ -60,6 +75,9 @@ function updateTimeOfDayBackground(date: Date): void {
   }
 }
 
+/**
+ * Helper to mutate the body attribute safely.
+ */
 function setDataTime(value: string) {
   const body = document.body;
   body.setAttribute("data-time", value);

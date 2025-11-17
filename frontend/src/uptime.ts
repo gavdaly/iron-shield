@@ -1,9 +1,15 @@
+/**
+ * Data payload describing the current uptime status of a site card.
+ */
 interface UptimeInfo {
   site_id: string;
   status: string;
   uptime_percentage: number;
 }
 
+/**
+ * Establish the SSE connection for uptime updates and update cards on new events.
+ */
 export function initUptimeSSE(): void {
   const eventSource = new EventSource("/uptime");
 
@@ -29,6 +35,9 @@ export function initUptimeSSE(): void {
   };
 }
 
+/**
+ * Apply an uptime update to the matching site card if it exists.
+ */
 function updateSiteCard(info: UptimeInfo): void {
   const siteCards = document.querySelectorAll<HTMLElement>(".site-card");
 
@@ -53,6 +62,9 @@ function updateSiteCard(info: UptimeInfo): void {
   });
 }
 
+/**
+ * Type guard used to ensure parsed SSE payloads have the expected shape.
+ */
 function isUptimeInfo(value: unknown): value is UptimeInfo {
   if (typeof value !== "object" || value === null) {
     return false;
