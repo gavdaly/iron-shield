@@ -3136,6 +3136,7 @@ dependencies = [
  "rspack_fs",
  "rspack_hash",
  "rspack_ids",
+ "rspack_loader_swc",
  "rspack_paths",
  "rspack_plugin_asset",
  "rspack_plugin_css",
@@ -3424,6 +3425,35 @@ dependencies = [
  "tokio",
  "tracing",
  "winnow",
+]
+
+[[package]]
+name = "rspack_loader_swc"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1740da321769775495d996e8eda089d193db5369da321d47d34df0c7ec91da0c"
+dependencies = [
+ "async-trait",
+ "either",
+ "rspack_cacheable",
+ "rspack_core",
+ "rspack_error",
+ "rspack_hook",
+ "rspack_javascript_compiler",
+ "rspack_loader_runner",
+ "rspack_swc_plugin_import",
+ "rspack_swc_plugin_ts_collector",
+ "rspack_workspace",
+ "rustc-hash",
+ "serde",
+ "serde_json",
+ "stacker",
+ "sugar_path",
+ "swc",
+ "swc_config",
+ "swc_core",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -3925,6 +3955,29 @@ dependencies = [
  "rustc-hash",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "rspack_swc_plugin_import"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f12b973d6f4e66e33a607fa075779fd2e4f8eb45fbe981da459e19ddad192ccf"
+dependencies = [
+ "cow-utils",
+ "heck",
+ "rustc-hash",
+ "serde",
+ "swc_core",
+]
+
+[[package]]
+name = "rspack_swc_plugin_ts_collector"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b9864cffaf9302bfe97c66b2f721d62f6c7f13bf9b482e70f901c5f180581c6"
+dependencies = [
+ "rustc-hash",
+ "swc_core",
 ]
 
 [[package]]
