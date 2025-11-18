@@ -398,6 +398,8 @@ mod tests {
     use std::io::Write;
     use std::sync::{Arc, RwLock};
     use tempfile::NamedTempFile;
+    use tokio::sync::broadcast;
+    use tokio_util::sync::CancellationToken;
 
     #[test]
     fn test_config_update_validate_valid_data() {
@@ -504,10 +506,13 @@ mod tests {
         let config_json = json5::to_string(&config).unwrap();
         temp_file.write_all(config_json.as_bytes()).unwrap();
 
+        let (shutdown_events, _) = broadcast::channel(1);
         let uptime_state = UptimeState {
             config: Arc::new(RwLock::new(config)),
             history: Arc::new(RwLock::new(HashMap::new())),
             config_file_path: temp_file.path().to_path_buf(),
+            shutdown_events,
+            shutdown_token: CancellationToken::new(),
         };
 
         let state = Arc::new(uptime_state);

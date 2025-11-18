@@ -139,6 +139,8 @@ mod tests {
     use http_body_util::BodyExt;
     use std::collections::HashMap;
     use std::sync::RwLock;
+    use tokio::sync::broadcast;
+    use tokio_util::sync::CancellationToken;
 
     /// Helper function to build a configuration for testing
     ///
@@ -180,10 +182,13 @@ mod tests {
     ///
     /// Returns an `Arc<UptimeState>` instance suitable for testing
     fn build_state(config: Config) -> Arc<UptimeState> {
+        let (shutdown_events, _) = broadcast::channel(1);
         Arc::new(UptimeState {
             config: Arc::new(RwLock::new(config)),
             history: Arc::new(RwLock::new(HashMap::new())),
             config_file_path: std::path::PathBuf::from("test-config.json5"),
+            shutdown_events,
+            shutdown_token: CancellationToken::new(),
         })
     }
 

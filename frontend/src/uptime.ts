@@ -40,6 +40,10 @@ export function initUptimeSSE(): void {
     }
   };
 
+  eventSource.addEventListener("maintenance", (event: MessageEvent) => {
+    handleMaintenanceShutdown(eventSource, event.data);
+  });
+
   eventSource.onerror = (error) => {
     console.error("Uptime SSE connection error", error);
   };
@@ -338,4 +342,30 @@ function isHistorySample(value: unknown): value is HistorySample {
       sample.response_time_ms === null ||
       typeof sample.response_time_ms === "number")
   );
+}
+
+function handleMaintenanceShutdown(eventSource: EventSource, rawMessage: unknown): void {
+  const fallback = "Server is shutting down for maintenance.";
+  const message =
+    typeof rawMessage === "string" && rawMessage.trim().length > 0 ? rawMessage : fallback;
+
+  console.warn(message);
+  eventSource.close();
+  showMaintenanceBanner(message);
+}
+
+function showMaintenanceBanner(message: string): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  let banner = document.getElementById("maintenance-notice");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "maintenance-notice";
+    banner.className = "maintenance-notice";
+    document.body.appendChild(banner);
+  }
+
+  banner.textContent = message;
 }

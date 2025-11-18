@@ -6,8 +6,11 @@ use std::convert::Infallible;
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
-use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio_stream::StreamExt;
+use tokio_stream::{
+    wrappers::{BroadcastStream, UnboundedReceiverStream},
+    StreamExt,
+};
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info};
 
 /// Maximum number of historical uptime entries retained per site.
@@ -140,8 +143,9 @@ struct SiteCheckResult {
 /// use iron_shield::config::Config;
 /// use std::collections::HashMap;
 /// use std::sync::{Arc, RwLock};
-/// use std::collections::VecDeque;
 /// use std::path::PathBuf;
+/// use tokio::sync::broadcast;
+/// use tokio_util::sync::CancellationToken;
 ///
 /// let config = Arc::new(RwLock::new(Config {
 ///     site_name: "Test Site".to_string(),
@@ -149,11 +153,14 @@ struct SiteCheckResult {
 ///     sites: vec![],
 /// }));
 /// let history = Arc::new(RwLock::new(HashMap::new()));
-///
+/// let (shutdown_events, _) = broadcast::channel(1);
+/// let shutdown_token = CancellationToken::new();
 /// let uptime_state = UptimeState {
 ///     config,
 ///     history,
 ///     config_file_path: PathBuf::from("config.json5"),
+///     shutdown_events,
+///     shutdown_token,
 /// };
 /// ```
 pub struct UptimeState {
@@ -163,6 +170,10 @@ pub struct UptimeState {
     pub history: Arc<RwLock<HashMap<String, VecDeque<HistoryEntry>>>>,
     /// Path to the configuration file for reloading purposes
     pub config_file_path: std::path::PathBuf,
+    /// Broadcast channel used to notify connected SSE clients about shutdowns
+    pub shutdown_events: tokio::sync::broadcast::Sender<String>,
+    /// Cancellation token to gracefully stop background uptime tasks
+    pub shutdown_token: CancellationToken,
 }
 
 /// Handles the uptime monitoring stream endpoint using Server-Sent Events (SSE)
@@ -218,6 +229,8 @@ pub async fn uptime_stream(
 
     // Create a channel to send updates from the checker task
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    let shutdown_token = state.shutdown_token.clone();
+    let shutdown_receiver = state.shutdown_events.subscribe();
 
     {
         if let Ok(config_guard) = config.read() {
@@ -242,13 +255,20 @@ pub async fn uptime_stream(
     }
 
     // Spawn a task to periodically check sites and send updates
+    let shutdown_token_for_task = shutdown_token.clone();
     tokio::spawn(async move {
         info!("Starting uptime monitoring service");
 
         let mut interval = tokio::time::interval(Duration::from_secs(5));
 
         loop {
-            interval.tick().await;
+            tokio::select! {
+                _ = shutdown_token_for_task.cancelled() => {
+                    info!("Stopping uptime monitoring service due to shutdown signal");
+                    break;
+                }
+                _ = interval.tick() => {}
+            }
             debug!("Starting new uptime check cycle");
 
             // Get a copy of the sites to check
@@ -394,7 +414,7 @@ pub async fn uptime_stream(
     });
 
     // Convert the receiving end of the channel into a stream
-    let stream = UnboundedReceiverStream::new(rx).map(|uptime_data| {
+    let uptime_stream = UnboundedReceiverStream::new(rx).map(|uptime_data| {
         if let Ok(event) = axum::response::sse::Event::default().json_data(&uptime_data) {
             Ok(event)
         } else {
@@ -402,6 +422,22 @@ pub async fn uptime_stream(
             Ok(axum::response::sse::Event::default().data("Error"))
         }
     });
+
+    let maintenance_stream = BroadcastStream::new(shutdown_receiver).filter_map(|result| {
+        match result {
+            Ok(message) => Some(Ok(
+                axum::response::sse::Event::default()
+                    .event("maintenance")
+                    .data(message),
+            )),
+            Err(e) => {
+                error!("Failed to read shutdown notification for SSE: {e}");
+                None
+            }
+        }
+    });
+
+    let stream = uptime_stream.merge(maintenance_stream);
 
     Sse::new(stream)
 }
@@ -775,10 +811,15 @@ mod tests {
 
         let config_file_path = std::path::PathBuf::from("config.json5");
 
+        let (shutdown_events, _) = tokio::sync::broadcast::channel(1);
+        let shutdown_token = CancellationToken::new();
+
         let uptime_state = UptimeState {
             config,
             history,
             config_file_path,
+            shutdown_events,
+            shutdown_token,
         };
 
         // Verify that the state can be created without issues

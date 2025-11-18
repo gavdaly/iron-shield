@@ -198,6 +198,22 @@ a.focus-visible {
     text-shadow: 0 3px 12px rgba(0, 0, 0, 0.65);
 }
 
+.maintenance-notice {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ffc857;
+    color: #1f1f1f;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    font-weight: var(--font-weight-semibold);
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    letter-spacing: 0.02em;
+}
+
 .site-card .uptime-history {
     grid-column: 1;
     grid-row: 2;

@@ -13,6 +13,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::RwLock; // Use std::sync::RwLock
 use tempfile::tempdir;
+use tokio::sync::broadcast;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
 async fn test_config_update_validate_valid() {
@@ -135,10 +137,13 @@ fn create_test_uptime_state(config_file_path: PathBuf) -> Arc<UptimeState> {
         clock: Clock::Hour24,
         sites: vec![],
     };
+    let (shutdown_events, _) = broadcast::channel(1);
     Arc::new(UptimeState {
         config: Arc::new(RwLock::new(config)), // Use std::sync::RwLock
         history: Arc::new(RwLock::new(std::collections::HashMap::new())),
         config_file_path,
+        shutdown_events,
+        shutdown_token: CancellationToken::new(),
     })
 }
 

@@ -23,7 +23,7 @@ use axum::{
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use tokio::signal;
+use tokio::{signal, sync::broadcast};
 use tokio_util::sync::CancellationToken;
 use tower_http::services::ServeDir;
 use tracing::info;
@@ -96,10 +96,14 @@ pub async fn run(
 
     // Create uptime state with the config from ConfigWatcher
     let history_map = Arc::new(RwLock::new(HashMap::new()));
+    let (shutdown_tx, _) = broadcast::channel(16);
+
     let uptime_state = Arc::new(UptimeState {
         config: config_rwlock,
         history: history_map,
         config_file_path: config_path.clone(), // Clone for UptimeState
+        shutdown_events: shutdown_tx.clone(),
+        shutdown_token: cancel_token.clone(),
     });
 
     let static_dir = resolve_static_dir();
@@ -127,7 +131,7 @@ pub async fn run(
     tracing::info!("Site launched on: http://{addr}");
 
     // Spawn the shutdown signal handler
-    tokio::spawn(shutdown_signal(cancel_token.clone()));
+    tokio::spawn(shutdown_signal(cancel_token.clone(), shutdown_tx.clone()));
 
     let listener = tokio::net::TcpListener::bind(address).await.map_err(|e| {
         crate::error::IronShieldError::Generic(format!("Failed to bind to address: {e}"))
@@ -171,7 +175,10 @@ fn resolve_static_dir() -> PathBuf {
 /// # Note
 ///
 /// This function is designed to be spawned as a separate task using `tokio::spawn`.
-async fn shutdown_signal(cancel_token: CancellationToken) {
+async fn shutdown_signal(
+    cancel_token: CancellationToken,
+    shutdown_events: broadcast::Sender<String>,
+) {
     // Handle Ctrl+C
     let ctrl_c = async {
         if let Err(e) = signal::ctrl_c().await {
@@ -201,5 +208,8 @@ async fn shutdown_signal(cancel_token: CancellationToken) {
     }
 
     tracing::info!("Received shutdown signal, starting graceful shutdown");
+    if let Err(err) = shutdown_events.send("Server is shutting down for maintenance".to_string()) {
+        tracing::warn!("Failed to notify clients about shutdown: {err}");
+    }
     cancel_token.cancel();
 }
