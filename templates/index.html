@@ -40,8 +40,9 @@
 
         <nav role="navigation" aria-label="Site shortcuts">
             <div id="sites">
-                {% for site in config.sites %} {% include "site_card.html" %} {%
-                endfor %}
+                {% for site in config.sites %}
+                {% include "site_card.html" %}
+                {% endfor %}
             </div>
         </nav>
     </body>

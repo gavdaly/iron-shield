@@ -188,6 +188,17 @@ a.focus-visible {
     }
 }
 
+.site-card .site-name {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+}
+
+.uptime-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .uptime {
     margin-top: 0.5rem;
     font-size: var(--text-xs);
@@ -195,7 +206,10 @@ a.focus-visible {
     border-radius: 1rem;
     background: var(--color-bg-tertiary);
     color: var(--color-text-secondary);
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 90px;
 }
 
 .uptime.up {
@@ -208,9 +222,87 @@ a.focus-visible {
     color: var(--color-error);
 }
 
-.uptime.unknown {
+.uptime.unknown,
+.uptime.loading {
     background: var(--color-warning-bg);
     color: var(--color-warning);
+}
+
+.uptime.loading {
+    background: #4b4b4b;
+    color: var(--color-text-secondary);
+}
+
+.uptime .status-text {
+    font-weight: var(--font-weight-medium);
+}
+
+.uptime .uptime-percentage {
+    font-variant-numeric: tabular-nums;
+}
+
+.uptime-history {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    min-height: 1.5rem;
+}
+
+.uptime-history-placeholder {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
+}
+
+.history-bar {
+    width: 0.35rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    background: var(--color-bg-tertiary);
+    opacity: 0.35;
+    transition: var(--transition-base);
+}
+
+.history-bar.up {
+    background: var(--color-success);
+    opacity: 1;
+}
+
+.history-bar.down {
+    background: var(--color-error);
+    opacity: 1;
+}
+
+.history-bar.loading {
+    background: #5a5a5a;
+    opacity: 1;
+}
+
+.history-bar-wrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.history-bar-popover {
+    padding: 0.35rem 0.55rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: var(--text-xs);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+    max-width: 200px;
+}
+
+.history-bar-popover::backdrop {
+    background: transparent;
+}
+
+.history-bar-popover .popover-status {
+    font-weight: var(--font-weight-semibold);
+}
+
+.history-bar-popover .popover-label {
+    color: var(--color-text-secondary);
 }
 
 /* Add responsive breakpoints */

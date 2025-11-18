@@ -1,12 +1,15 @@
-use std::{future::ready, path::PathBuf};
+use std::{
+    future::ready,
+    path::{Path, PathBuf},
+};
 
 use rspack::builder::{Builder, ExperimentsBuilder};
 use rspack_core::{
     Compiler, ModuleOptions, ModuleRule, ModuleRuleEffect, ModuleRuleUse, ModuleRuleUseLoader,
     ModuleType, OutputOptions, RuleSetCondition,
 };
-use serde_json::json;
 use rspack_tasks::within_compiler_context_for_testing;
+use serde_json::json;
 
 fn main() {
     println!("cargo:rerun-if-changed=frontend/src");
@@ -20,7 +23,7 @@ fn main() {
         .build()
         .expect("failed to create tokio runtime for Rspack");
 
-    rt.block_on(async { run_rspack_bundle().await });
+    rt.block_on(Box::pin(run_rspack_bundle()));
 
     println!("cargo:rustc-env=FRONTEND_DIST_DIR={}", dist_dir.display());
 }
@@ -28,14 +31,17 @@ fn main() {
 async fn run_rspack_bundle() {
     let context = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend");
 
-    within_compiler_context_for_testing(async move {
+    Box::pin(within_compiler_context_for_testing(async move {
         let ts_rule = ModuleRule {
             test: Some(RuleSetCondition::Func(Box::new(|ctx| {
-                Box::pin(ready(Ok(
-                    ctx.as_str()
-                        .map(|data| data.ends_with(".ts") || data.ends_with(".tsx"))
-                        .unwrap_or_default(),
-                )))
+                Box::pin(ready(Ok(ctx.as_str().is_some_and(|data| {
+                    Path::new(data)
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(|ext| {
+                            ext.eq_ignore_ascii_case("ts") || ext.eq_ignore_ascii_case("tsx")
+                        })
+                }))))
             }))),
             effect: ModuleRuleEffect {
                 r#use: ModuleRuleUse::Array(vec![ModuleRuleUseLoader {
@@ -64,11 +70,12 @@ async fn run_rspack_bundle() {
 
         let svg_rule = ModuleRule {
             test: Some(RuleSetCondition::Func(Box::new(|ctx| {
-                Box::pin(ready(Ok(
-                    ctx.as_str()
-                        .map(|data| data.ends_with(".svg"))
-                        .unwrap_or_default(),
-                )))
+                Box::pin(ready(Ok(ctx.as_str().is_some_and(|data| {
+                    Path::new(data)
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case("svg"))
+                }))))
             }))),
             effect: ModuleRuleEffect {
                 r#type: Some(ModuleType::AssetResource),
@@ -96,16 +103,10 @@ async fn run_rspack_bundle() {
             .build()
             .expect("failed to build Rspack compiler");
 
-        compiler
-            .run()
-            .await
-            .expect("failed to run Rspack compiler");
+        compiler.run().await.expect("failed to run Rspack compiler");
 
         let errors: Vec<_> = compiler.compilation.get_errors().collect();
-        if !errors.is_empty() {
-            panic!("Rspack compilation failed: {errors:#?}");
-        }
-
-    })
+        assert!(errors.is_empty(), "Rspack compilation failed: {errors:#?}");
+    }))
     .await;
 }

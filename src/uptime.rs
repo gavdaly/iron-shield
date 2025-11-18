@@ -4,11 +4,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::Semaphore;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info};
+
+/// Maximum number of historical uptime entries retained per site.
+const MAX_HISTORY_ENTRIES: usize = 20;
 
 /// Represents the uptime status of a monitored website
 ///
@@ -61,19 +64,41 @@ pub enum UptimeStatus {
 /// # Examples
 ///
 /// ```
-/// use iron_shield::uptime::{UptimeHistory, UptimeStatus};
+/// use iron_shield::uptime::{HistoryEntry, UptimeHistory, UptimeStatus};
 /// use std::collections::VecDeque;
 ///
 /// let history = UptimeHistory {
 ///     site_id: "example.com".to_string(),
 ///     status: UptimeStatus::Up,
 ///     timestamp: 1234567890,
-///     history: vec![UptimeStatus::Up, UptimeStatus::Up, UptimeStatus::Down],
+///     history: vec![
+///         HistoryEntry {
+///             status: UptimeStatus::Up,
+///             response_time_ms: Some(150),
+///         },
+///         HistoryEntry {
+///             status: UptimeStatus::Up,
+///             response_time_ms: Some(160),
+///         },
+///         HistoryEntry {
+///             status: UptimeStatus::Down,
+///             response_time_ms: None,
+///         },
+///     ],
 ///     uptime_percentage: 66.67,
+///     response_time_ms: Some(180),
 /// };
 ///
 /// println!("Site {} has {}% uptime", history.site_id, history.uptime_percentage);
 /// ```
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HistoryEntry {
+    /// Recorded status for this check
+    pub status: UptimeStatus,
+    /// Optional response time in milliseconds (only present for completed checks)
+    pub response_time_ms: Option<u64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UptimeHistory {
     /// Unique identifier for the site (typically the site name)
@@ -83,9 +108,18 @@ pub struct UptimeHistory {
     /// Unix timestamp when this record was created
     pub timestamp: u64,
     /// A collection of the last 20 status checks for trend analysis
-    pub history: Vec<UptimeStatus>, // Last 20 status checks
+    pub history: Vec<HistoryEntry>, // Last 20 status checks
     /// Calculated percentage of "up" time in the history (excluding Loading statuses)
     pub uptime_percentage: f64, // Percentage of "up" time in the history
+    /// The response time (in milliseconds) for the latest check, if available
+    pub response_time_ms: Option<u64>,
+}
+
+/// Result of a single uptime probe with the measured response time.
+#[derive(Debug, Clone, Copy)]
+struct SiteCheckResult {
+    status: UptimeStatus,
+    response_time_ms: Option<u64>,
 }
 
 /// Shared state for the uptime monitoring service with historical data
@@ -126,7 +160,7 @@ pub struct UptimeState {
     /// Thread-safe access to the application configuration
     pub config: Arc<RwLock<Config>>,
     /// Thread-safe map of site histories (`site_id` -> `VecDeque` of `UptimeStatus`)
-    pub history: Arc<RwLock<HashMap<String, VecDeque<UptimeStatus>>>>,
+    pub history: Arc<RwLock<HashMap<String, VecDeque<HistoryEntry>>>>,
     /// Path to the configuration file for reloading purposes
     pub config_file_path: std::path::PathBuf,
 }
@@ -192,10 +226,9 @@ pub async fn uptime_stream(
 
             for site in &sites_to_initialize {
                 if let Ok(mut history_guard) = history_map.write() {
-                    let mut history = VecDeque::new();
-                    // Start with Loading status as before
-                    history.push_back(UptimeStatus::Loading);
-                    history_guard.insert(site.name.clone(), history);
+                    history_guard
+                        .entry(site.name.clone())
+                        .or_insert_with(VecDeque::new);
                 } else {
                     error!(
                         "Failed to acquire history write lock for initialization of site: {}",
@@ -239,15 +272,9 @@ pub async fn uptime_stream(
                     }
                 };
                 for site in &sites_to_check {
-                    let site_history = history_guard
+                    history_guard
                         .entry(site.name.clone())
                         .or_insert_with(VecDeque::new);
-                    site_history.push_back(UptimeStatus::Loading);
-
-                    // Keep only the last 20 entries
-                    if site_history.len() > 20 {
-                        site_history.pop_front();
-                    }
                 }
             }
 
@@ -264,21 +291,20 @@ pub async fn uptime_stream(
 
                 for site in &sites_to_check {
                     if let Some(site_history) = history_guard.get(&site.name) {
-                        if let Some(&current_status) = site_history.back() {
-                            let uptime_percentage = calculate_uptime_percentage(site_history);
-                            let site_name = site.name.clone();
+                        let uptime_percentage = calculate_uptime_percentage(site_history);
+                        let site_name = site.name.clone();
 
-                            debug!("Calculated uptime: site={site_name}, current_status={current_status:?}, percentage={uptime_percentage:.2}%");
+                        debug!("Calculated uptime: site={site_name}, current_status=Loading, percentage={uptime_percentage:.2}%");
 
-                            let data = create_uptime_history(
-                                &site.name,
-                                current_status,
-                                site_history,
-                                uptime_percentage,
-                            );
+                        let data = create_uptime_history(
+                            &site.name,
+                            UptimeStatus::Loading,
+                            site_history,
+                            uptime_percentage,
+                            None,
+                        );
 
-                            uptime_data.push(data);
-                        }
+                        uptime_data.push(data);
                     }
                 }
 
@@ -302,8 +328,13 @@ pub async fn uptime_stream(
                     let _permit = semaphore.acquire().await.unwrap(); // Wait for permit
                     debug!("Starting uptime check for site: {site_name}");
 
-                    let status = check_site_status(&client, &url).await;
-                    debug!("Uptime check completed for site: {site_name}, status: {status:?}");
+                    let SiteCheckResult {
+                        status,
+                        response_time_ms,
+                    } = check_site_status(&client, &url).await;
+                    debug!(
+                        "Uptime check completed for site: {site_name}, status: {status:?}, response_time_ms={response_time_ms:?}"
+                    );
 
                     {
                         let mut history_guard = match history_map.write() {
@@ -316,12 +347,7 @@ pub async fn uptime_stream(
                         let site_history = history_guard
                             .entry(site_name.clone())
                             .or_insert_with(VecDeque::new);
-                        site_history.push_back(status);
-
-                        // Keep only the last 20 entries
-                        if site_history.len() > 20 {
-                            site_history.pop_front();
-                        }
+                        apply_final_status(site_history, status, response_time_ms);
                     }
 
                     // Send the final status update
@@ -334,6 +360,8 @@ pub async fn uptime_stream(
                             }
                         };
                         if let Some(site_history) = history_guard.get(&site_name) {
+                            let latest_response_time =
+                                site_history.back().and_then(|entry| entry.response_time_ms);
                             let uptime_percentage = calculate_uptime_percentage(site_history);
 
                             debug!(
@@ -345,6 +373,7 @@ pub async fn uptime_stream(
                                 status,
                                 site_history,
                                 uptime_percentage,
+                                latest_response_time,
                             );
 
                             if tx.send(vec![data]).is_err() {
@@ -397,14 +426,14 @@ pub async fn uptime_stream(
 /// of actual uptime, since Loading is an intermediate state during checks rather than
 /// an indicator of site availability.
 #[must_use]
-pub fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64 {
+pub fn calculate_uptime_percentage(site_history: &VecDeque<HistoryEntry>) -> f64 {
     let up_count = site_history
         .iter()
-        .filter(|&&s| s == UptimeStatus::Up)
+        .filter(|entry| entry.status == UptimeStatus::Up)
         .count();
     let count_excluding_loading = site_history
         .iter()
-        .filter(|&&s| s != UptimeStatus::Loading)
+        .filter(|entry| entry.status != UptimeStatus::Loading)
         .count();
 
     if count_excluding_loading == 0 {
@@ -438,8 +467,9 @@ pub fn calculate_uptime_percentage(site_history: &VecDeque<UptimeStatus>) -> f64
 fn create_uptime_history(
     site_name: &str,
     current_status: UptimeStatus,
-    site_history: &VecDeque<UptimeStatus>,
+    site_history: &VecDeque<HistoryEntry>,
     uptime_percentage: f64,
+    response_time_ms: Option<u64>,
 ) -> UptimeHistory {
     UptimeHistory {
         site_id: site_name.to_string(),
@@ -448,8 +478,41 @@ fn create_uptime_history(
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_else(|_| std::time::Duration::from_secs(0))
             .as_secs(),
-        history: site_history.iter().copied().collect(),
+        history: site_history.iter().cloned().collect(),
         uptime_percentage,
+        response_time_ms,
+    }
+}
+
+/// Replace the most recent `Loading` entry (if present) with the final status and metadata.
+///
+/// This ensures that loading markers act like a transient state. If no loading entry is found,
+/// the final status is appended while enforcing the history length limit.
+fn apply_final_status(
+    site_history: &mut VecDeque<HistoryEntry>,
+    final_status: UptimeStatus,
+    response_time_ms: Option<u64>,
+) {
+    let mut replaced = false;
+
+    if let Some(last) = site_history.back_mut() {
+        if last.status == UptimeStatus::Loading {
+            *last = HistoryEntry {
+                status: final_status,
+                response_time_ms,
+            };
+            replaced = true;
+        }
+    }
+
+    if !replaced {
+        site_history.push_back(HistoryEntry {
+            status: final_status,
+            response_time_ms,
+        });
+        if site_history.len() > MAX_HISTORY_ENTRIES {
+            site_history.pop_front();
+        }
     }
 }
 
@@ -466,15 +529,16 @@ fn create_uptime_history(
 ///
 /// # Returns
 ///
-/// An `UptimeStatus` value indicating whether the site is up, down, or had an error during check
+/// A `SiteCheckResult` containing the status and measured response time
 ///
 /// # Note
 ///
 /// The function uses a timeout of 10 seconds for the request. It returns `UptimeStatus::Down`
 /// for any request failure, including timeouts, connection errors, or non-success HTTP status codes.
-async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus {
+async fn check_site_status(client: &reqwest::Client, url: &str) -> SiteCheckResult {
     debug!("Checking site status: {url}");
-    match client
+    let start = Instant::now();
+    let status = match client
         .head(url)
         .timeout(std::time::Duration::from_secs(10))
         .send()
@@ -494,6 +558,13 @@ async fn check_site_status(client: &reqwest::Client, url: &str) -> UptimeStatus 
             debug!("Site {url} is DOWN: error {e}");
             UptimeStatus::Down
         }
+    };
+
+    let response_time_ms = start.elapsed().as_millis().try_into().unwrap_or(u64::MAX);
+
+    SiteCheckResult {
+        status,
+        response_time_ms: Some(response_time_ms),
     }
 }
 
@@ -503,6 +574,16 @@ mod tests {
     use crate::config::Config;
     use std::collections::VecDeque;
     use std::sync::{Arc, RwLock};
+
+    fn make_history(statuses: &[UptimeStatus]) -> VecDeque<HistoryEntry> {
+        statuses
+            .iter()
+            .map(|status| HistoryEntry {
+                status: *status,
+                response_time_ms: None,
+            })
+            .collect()
+    }
 
     #[test]
     fn test_uptime_status_enum() {
@@ -517,17 +598,14 @@ mod tests {
 
     #[test]
     fn test_calculate_uptime_percentage_empty_history() {
-        let history = VecDeque::new();
+        let history: VecDeque<HistoryEntry> = VecDeque::new();
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn test_calculate_uptime_percentage_all_up() {
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up);
-        history.push_back(UptimeStatus::Up);
-        history.push_back(UptimeStatus::Up);
+        let history = make_history(&[UptimeStatus::Up, UptimeStatus::Up, UptimeStatus::Up]);
 
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 100.0).abs() < f64::EPSILON);
@@ -535,10 +613,7 @@ mod tests {
 
     #[test]
     fn test_calculate_uptime_percentage_all_down() {
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Down);
-        history.push_back(UptimeStatus::Down);
-        history.push_back(UptimeStatus::Down);
+        let history = make_history(&[UptimeStatus::Down, UptimeStatus::Down, UptimeStatus::Down]);
 
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 0.0).abs() < f64::EPSILON);
@@ -546,11 +621,12 @@ mod tests {
 
     #[test]
     fn test_calculate_uptime_percentage_mixed_no_loading() {
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up);
-        history.push_back(UptimeStatus::Down);
-        history.push_back(UptimeStatus::Up);
-        history.push_back(UptimeStatus::Down);
+        let history = make_history(&[
+            UptimeStatus::Up,
+            UptimeStatus::Down,
+            UptimeStatus::Up,
+            UptimeStatus::Down,
+        ]);
 
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 50.0).abs() < f64::EPSILON);
@@ -558,13 +634,13 @@ mod tests {
 
     #[test]
     fn test_calculate_uptime_percentage_with_loading() {
-        // Loading status should be excluded from the calculation
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up);
-        history.push_back(UptimeStatus::Loading);
-        history.push_back(UptimeStatus::Down);
-        history.push_back(UptimeStatus::Loading);
-        history.push_back(UptimeStatus::Up);
+        let history = make_history(&[
+            UptimeStatus::Up,
+            UptimeStatus::Loading,
+            UptimeStatus::Down,
+            UptimeStatus::Loading,
+            UptimeStatus::Up,
+        ]);
 
         // 2 Up out of 3 non-Loading statuses = 66.67%
         let percentage = calculate_uptime_percentage(&history);
@@ -573,10 +649,11 @@ mod tests {
 
     #[test]
     fn test_calculate_uptime_percentage_all_loading() {
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Loading);
-        history.push_back(UptimeStatus::Loading);
-        history.push_back(UptimeStatus::Loading);
+        let history = make_history(&[
+            UptimeStatus::Loading,
+            UptimeStatus::Loading,
+            UptimeStatus::Loading,
+        ]);
 
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 0.0).abs() < f64::EPSILON);
@@ -584,20 +661,45 @@ mod tests {
 
     #[test]
     fn test_create_uptime_history() {
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up);
-        history.push_back(UptimeStatus::Down);
-        history.push_back(UptimeStatus::Loading);
+        let history = VecDeque::from([
+            HistoryEntry {
+                status: UptimeStatus::Up,
+                response_time_ms: Some(100),
+            },
+            HistoryEntry {
+                status: UptimeStatus::Down,
+                response_time_ms: None,
+            },
+            HistoryEntry {
+                status: UptimeStatus::Loading,
+                response_time_ms: None,
+            },
+        ]);
 
-        let uptime_history = create_uptime_history("test-site", UptimeStatus::Up, &history, 50.0);
+        let uptime_history =
+            create_uptime_history("test-site", UptimeStatus::Up, &history, 50.0, Some(120));
 
         assert_eq!(uptime_history.site_id, "test-site");
         assert_eq!(uptime_history.status, UptimeStatus::Up);
         assert!((uptime_history.uptime_percentage - 50.0).abs() < f64::EPSILON);
         assert_eq!(
             uptime_history.history,
-            vec![UptimeStatus::Up, UptimeStatus::Down, UptimeStatus::Loading]
+            vec![
+                HistoryEntry {
+                    status: UptimeStatus::Up,
+                    response_time_ms: Some(100),
+                },
+                HistoryEntry {
+                    status: UptimeStatus::Down,
+                    response_time_ms: None,
+                },
+                HistoryEntry {
+                    status: UptimeStatus::Loading,
+                    response_time_ms: None,
+                }
+            ]
         );
+        assert_eq!(uptime_history.response_time_ms, Some(120));
 
         // Check that timestamp is reasonable (within a few seconds of now)
         let current_time = std::time::SystemTime::now()
@@ -606,6 +708,58 @@ mod tests {
             .as_secs();
         assert!(uptime_history.timestamp <= current_time);
         assert!(uptime_history.timestamp >= current_time - 10); // Allow some buffer
+    }
+
+    #[test]
+    fn test_apply_final_status_replaces_loading() {
+        let mut history = VecDeque::from([
+            HistoryEntry {
+                status: UptimeStatus::Up,
+                response_time_ms: Some(80),
+            },
+            HistoryEntry {
+                status: UptimeStatus::Loading,
+                response_time_ms: None,
+            },
+        ]);
+
+        apply_final_status(&mut history, UptimeStatus::Down, Some(150));
+
+        assert_eq!(
+            history,
+            VecDeque::from([
+                HistoryEntry {
+                    status: UptimeStatus::Up,
+                    response_time_ms: Some(80),
+                },
+                HistoryEntry {
+                    status: UptimeStatus::Down,
+                    response_time_ms: Some(150),
+                }
+            ])
+        );
+    }
+
+    #[test]
+    fn test_apply_final_status_enforces_capacity() {
+        let mut history = VecDeque::from(vec![
+            HistoryEntry {
+                status: UptimeStatus::Up,
+                response_time_ms: None,
+            };
+            MAX_HISTORY_ENTRIES
+        ]);
+
+        apply_final_status(&mut history, UptimeStatus::Down, Some(200));
+
+        assert_eq!(history.len(), MAX_HISTORY_ENTRIES);
+        assert_eq!(
+            history.back(),
+            Some(&HistoryEntry {
+                status: UptimeStatus::Down,
+                response_time_ms: Some(200),
+            })
+        );
     }
 
     #[test]
@@ -641,7 +795,8 @@ mod tests {
         // Test with a URL that should result in an error (nonexistent domain)
         let result =
             check_site_status(&client, "http://definitely-not-a-real-domain-12345.com").await;
-        assert_eq!(result, UptimeStatus::Down);
+        assert_eq!(result.status, UptimeStatus::Down);
+        assert!(result.response_time_ms.is_some());
     }
 
     // Test the data structures
@@ -651,8 +806,22 @@ mod tests {
             site_id: "test-site".to_string(),
             status: UptimeStatus::Up,
             timestamp: 1_234_567_890, // Using underscores for readability
-            history: vec![UptimeStatus::Up, UptimeStatus::Down, UptimeStatus::Loading],
+            history: vec![
+                HistoryEntry {
+                    status: UptimeStatus::Up,
+                    response_time_ms: Some(80),
+                },
+                HistoryEntry {
+                    status: UptimeStatus::Down,
+                    response_time_ms: None,
+                },
+                HistoryEntry {
+                    status: UptimeStatus::Loading,
+                    response_time_ms: None,
+                },
+            ],
             uptime_percentage: 50.0,
+            response_time_ms: Some(250),
         };
 
         // Test serialization/deserialization
@@ -667,6 +836,10 @@ mod tests {
             (uptime_history.uptime_percentage - deserialized.uptime_percentage).abs()
                 < f64::EPSILON
         );
+        assert_eq!(
+            uptime_history.response_time_ms,
+            deserialized.response_time_ms
+        );
     }
 
     #[tokio::test]
@@ -676,7 +849,10 @@ mod tests {
         let result = check_site_status(&client, "https://httpbin.org/status/200").await;
         // Note: This might fail if no internet connection, but it's a good test when available
         // For now, we'll just check that it doesn't panic
-        assert!(result == UptimeStatus::Up || result == UptimeStatus::Down);
+        assert!(matches!(
+            result.status,
+            UptimeStatus::Up | UptimeStatus::Down
+        ));
     }
 
     #[tokio::test]
@@ -684,7 +860,7 @@ mod tests {
         // Test with a URL that returns a 500 Internal Server Error
         let client = reqwest::Client::new();
         let result = check_site_status(&client, "https://httpbin.org/status/500").await;
-        assert_eq!(result, UptimeStatus::Down);
+        assert_eq!(result.status, UptimeStatus::Down);
     }
 
     #[tokio::test]
@@ -697,17 +873,18 @@ mod tests {
 
         // Use a URL that will likely timeout with 1ms timeout
         let result = check_site_status(&client, "https://httpbin.org/delay/10").await;
-        assert_eq!(result, UptimeStatus::Down);
+        assert_eq!(result.status, UptimeStatus::Down);
     }
 
     #[test]
     fn test_calculate_uptime_percentage_accuracy() {
         // Test with a known percentage (75% uptime)
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up); // Counted as up
-        history.push_back(UptimeStatus::Up); // Counted as up
-        history.push_back(UptimeStatus::Up); // Counted as up
-        history.push_back(UptimeStatus::Down); // Counted as down
+        let history = make_history(&[
+            UptimeStatus::Up,
+            UptimeStatus::Up,
+            UptimeStatus::Up,
+            UptimeStatus::Down,
+        ]);
 
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 75.0).abs() < f64::EPSILON);
@@ -716,13 +893,14 @@ mod tests {
     #[test]
     fn test_calculate_uptime_percentage_with_mixed_loading() {
         // Test that loading statuses are excluded from calculation
-        let mut history = VecDeque::new();
-        history.push_back(UptimeStatus::Up); // Counted as up
-        history.push_back(UptimeStatus::Loading); // Not counted
-        history.push_back(UptimeStatus::Down); // Counted as down
-        history.push_back(UptimeStatus::Loading); // Not counted
-        history.push_back(UptimeStatus::Up); // Counted as up
-        history.push_back(UptimeStatus::Up); // Counted as up
+        let history = make_history(&[
+            UptimeStatus::Up,
+            UptimeStatus::Loading,
+            UptimeStatus::Down,
+            UptimeStatus::Loading,
+            UptimeStatus::Up,
+            UptimeStatus::Up,
+        ]);
 
         // Should be 3 up / 4 total non-loading = 75%
         let percentage = calculate_uptime_percentage(&history);

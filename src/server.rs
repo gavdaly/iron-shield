@@ -149,8 +149,7 @@ pub async fn run(
 
 fn resolve_static_dir() -> PathBuf {
     std::env::var("FRONTEND_DIST_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from(FRONTEND_DIST_DEFAULT))
+        .map_or_else(|_| PathBuf::from(FRONTEND_DIST_DEFAULT), PathBuf::from)
 }
 
 /// A helper function that awaits a shutdown signal to trigger graceful shutdown.
