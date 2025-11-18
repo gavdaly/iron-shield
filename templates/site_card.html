@@ -6,19 +6,17 @@
     role="listitem"
 >
     <span class="site-name">{{ site.name }}</span>
-    <div class="uptime-wrapper">
-        <div class="uptime" role="status" aria-live="polite" aria-atomic="true">
-            <span class="status-text">Loading</span>
-            <span class="uptime-percentage">{{ site.uptime_percentage }}%</span>
-        </div>
-        <div
-            class="uptime-history"
-            role="img"
-            aria-label="Uptime history for {{ site.name }}"
-            aria-live="polite"
-            aria-atomic="true"
-        >
-            <span class="uptime-history-placeholder">Loading history…</span>
-        </div>
+    <div
+        class="uptime-history"
+        role="img"
+        aria-label="Uptime history for {{ site.name }}"
+        aria-live="polite"
+        aria-atomic="true"
+    >
+        <span class="uptime-history-placeholder">Loading history…</span>
+    </div>
+    <div class="uptime" role="status" aria-live="polite" aria-atomic="true">
+        <span class="status-text">Loading</span>
+        <span class="uptime-percentage">{{ site.uptime_percentage }}%</span>
     </div>
 </a>

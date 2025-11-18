@@ -15,6 +15,7 @@ interface UptimeInfo {
 }
 
 const MAX_HISTORY_BARS = 12;
+const HISTORY_ANIMATION_DURATION = 420;
 
 /**
  * Establish the SSE connection for uptime updates and update cards on new events.
@@ -63,14 +64,17 @@ function updateSiteCard(info: UptimeInfo): void {
     }
 
     const normalizedStatus = info.status.toLowerCase();
+    const isLoadingStatus = normalizedStatus === "loading";
 
-    uptimeElement.className = `uptime ${normalizedStatus}`;
-    const statusText = formatStatus(normalizedStatus);
-    const percentage = info.uptime_percentage.toFixed(1);
-    uptimeElement.innerHTML = `
-      <span class="status-text">${statusText}</span>
-      <span class="uptime-percentage">${percentage}%</span>
-    `;
+    if (!isLoadingStatus) {
+      uptimeElement.className = `uptime ${normalizedStatus}`;
+      const statusText = formatStatus(normalizedStatus);
+      const percentage = info.uptime_percentage.toFixed(1);
+      uptimeElement.innerHTML = `
+        <span class="status-text">${statusText}</span>
+        <span class="uptime-percentage">${percentage}%</span>
+      `;
+    }
 
     if (historyElement) {
       renderHistory(historyElement, info.history, info.site_id);
@@ -80,23 +84,70 @@ function updateSiteCard(info: UptimeInfo): void {
 
 function renderHistory(element: HTMLElement, history: HistorySample[], siteId: string): void {
   const recentHistory = history.slice(-MAX_HISTORY_BARS);
-  element.innerHTML = "";
+  const historyKey = createHistoryKey(recentHistory);
 
   if (recentHistory.length === 0) {
+    element.innerHTML = "";
     const placeholder = document.createElement("span");
     placeholder.className = "uptime-history-placeholder";
     placeholder.textContent = "No history yet";
     element.appendChild(placeholder);
     element.setAttribute("aria-label", "No uptime history yet");
+    delete element.dataset.historyKey;
+    delete element.dataset.pendingHistory;
+    delete element.dataset.animating;
     return;
   }
 
+  if (element.dataset.animating === "true") {
+    element.dataset.pendingHistory = JSON.stringify(recentHistory);
+    return;
+  }
+
+  const previousKey = element.dataset.historyKey;
+  if (previousKey === historyKey) {
+    return;
+  }
+  const existingWrapperCount = element.querySelectorAll(".history-bar-wrapper").length;
+  const shouldAnimateShift =
+    Boolean(previousKey && previousKey !== historyKey) &&
+    recentHistory.length === MAX_HISTORY_BARS &&
+    existingWrapperCount === MAX_HISTORY_BARS;
+
+  if (shouldAnimateShift) {
+    animateHistoryTransition(element, recentHistory, siteId, historyKey);
+    return;
+  }
+
+  const shouldHighlightNew = Boolean(previousKey && previousKey !== historyKey);
+  buildHistoryBars(element, recentHistory, siteId, {
+    highlightNew: shouldHighlightNew,
+    historyKey,
+  });
+}
+
+interface HistoryBuildOptions {
+  highlightNew?: boolean;
+  historyKey: string;
+}
+
+function buildHistoryBars(
+  element: HTMLElement,
+  history: HistorySample[],
+  siteId: string,
+  options: HistoryBuildOptions,
+): void {
+  element.innerHTML = "";
   const fragment = document.createDocumentFragment();
   const siteSlug = slugifyForId(siteId);
-  recentHistory.forEach((sample, index) => {
+
+  history.forEach((sample, index) => {
     const normalizedStatus = sample.status.toLowerCase();
     const wrapper = document.createElement("span");
     wrapper.className = "history-bar-wrapper";
+    if (options.highlightNew && index === history.length - 1) {
+      wrapper.classList.add("history-bar-wrapper--incoming");
+    }
 
     const bar = document.createElement("span");
     bar.className = `history-bar ${normalizedStatus}`;
@@ -123,7 +174,59 @@ function renderHistory(element: HTMLElement, history: HistorySample[], siteId: s
   });
 
   element.appendChild(fragment);
-  element.setAttribute("aria-label", `Last ${recentHistory.length} checks for ${siteId}`);
+  element.setAttribute("aria-label", `Last ${history.length} checks for ${siteId}`);
+  element.dataset.historyKey = options.historyKey;
+}
+
+function animateHistoryTransition(
+  element: HTMLElement,
+  history: HistorySample[],
+  siteId: string,
+  historyKey: string,
+): void {
+  const wrappers = Array.from(element.querySelectorAll<HTMLElement>(".history-bar-wrapper"));
+  if (wrappers.length === 0) {
+    buildHistoryBars(element, history, siteId, { historyKey });
+    return;
+  }
+
+  element.dataset.animating = "true";
+  const [first, ...rest] = wrappers;
+  first.classList.add("history-bar-wrapper--falling");
+  rest.forEach((wrapper) => wrapper.classList.add("history-bar-wrapper--shifting"));
+
+  window.setTimeout(() => {
+    delete element.dataset.animating;
+    buildHistoryBars(element, history, siteId, { highlightNew: true, historyKey });
+    flushPendingHistory(element, siteId);
+  }, HISTORY_ANIMATION_DURATION);
+}
+
+function flushPendingHistory(element: HTMLElement, siteId: string): void {
+  const pending = element.dataset.pendingHistory;
+  if (!pending) {
+    return;
+  }
+
+  delete element.dataset.pendingHistory;
+  try {
+    const parsed = JSON.parse(pending) as unknown;
+    if (Array.isArray(parsed) && parsed.every((value) => isHistorySample(value))) {
+      renderHistory(element, parsed, siteId);
+    }
+  } catch {
+    // Ignore malformed payloads.
+  }
+}
+
+function createHistoryKey(history: HistorySample[]): string {
+  if (history.length === 0) {
+    return "empty";
+  }
+
+  return history
+    .map((sample) => `${sample.status}:${sample.response_time_ms ?? "na"}`)
+    .join("|");
 }
 
 function formatStatus(status: string): string {

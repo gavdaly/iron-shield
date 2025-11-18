@@ -91,6 +91,7 @@
 body {
     background: var(--color-bg-gradient);
     color: var(--color-text-primary);
+    font-family: var(--font-primary, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif);
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -169,10 +170,11 @@ a.focus-visible {
 .site-card {
     text-decoration: none;
     color: var(--color-text-primary);
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: 1.5rem;
+    row-gap: 0.75rem;
     width: 100%;
     margin-bottom: 0.5rem;
 
@@ -189,18 +191,21 @@ a.focus-visible {
 }
 
 .site-card .site-name {
-    font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-semibold);
+    grid-column: 1;
+    grid-row: 1;
+    text-shadow: 0 3px 12px rgba(0, 0, 0, 0.65);
 }
 
-.uptime-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.site-card .uptime-history {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
 }
 
 .uptime {
-    margin-top: 0.5rem;
+    margin-top: 0;
     font-size: var(--text-xs);
     padding: 0.25rem 0.75rem;
     border-radius: 1rem;
@@ -208,10 +213,14 @@ a.focus-visible {
     color: var(--color-text-secondary);
     display: inline-flex;
     align-items: center;
+    justify-self: center;
+    justify-content: center;
     gap: 0.35rem;
     min-width: 90px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
 }
-
 .uptime.up {
     background: var(--color-success-bg);
     color: var(--color-success);
@@ -242,8 +251,10 @@ a.focus-visible {
 }
 
 .uptime-history {
+    --history-bar-width: 0.35rem;
+    --history-bar-gap: 0.35rem;
     display: flex;
-    gap: 0.35rem;
+    gap: var(--history-bar-gap);
     align-items: center;
     min-height: 1.5rem;
 }
@@ -254,7 +265,7 @@ a.focus-visible {
 }
 
 .history-bar {
-    width: 0.35rem;
+    width: var(--history-bar-width);
     height: 1.25rem;
     border-radius: 999px;
     background: var(--color-bg-tertiary);
@@ -282,6 +293,18 @@ a.focus-visible {
     display: inline-flex;
 }
 
+.history-bar-wrapper--falling {
+    animation: history-bar-fall 0.42s ease forwards;
+}
+
+.history-bar-wrapper--shifting {
+    animation: history-bar-shift 0.42s ease forwards;
+}
+
+.history-bar-wrapper--incoming {
+    animation: history-bar-incoming 0.42s ease forwards;
+}
+
 .history-bar-popover {
     padding: 0.35rem 0.55rem;
     border-radius: 0.5rem;
@@ -303,6 +326,37 @@ a.focus-visible {
 
 .history-bar-popover .popover-label {
     color: var(--color-text-secondary);
+}
+
+@keyframes history-bar-fall {
+    0% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-0.1rem, 1rem) rotate(-12deg);
+    }
+}
+
+@keyframes history-bar-shift {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(calc(-1 * (var(--history-bar-width) + var(--history-bar-gap))));
+    }
+}
+
+@keyframes history-bar-incoming {
+    0% {
+        opacity: 0;
+        transform: translateY(-0.35rem);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Add responsive breakpoints */
