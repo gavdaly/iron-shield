@@ -263,7 +263,7 @@ pub async fn uptime_stream(
 
         loop {
             tokio::select! {
-                _ = shutdown_token_for_task.cancelled() => {
+                () = shutdown_token_for_task.cancelled() => {
                     info!("Stopping uptime monitoring service due to shutdown signal");
                     break;
                 }
@@ -423,19 +423,16 @@ pub async fn uptime_stream(
         }
     });
 
-    let maintenance_stream = BroadcastStream::new(shutdown_receiver).filter_map(|result| {
-        match result {
-            Ok(message) => Some(Ok(
-                axum::response::sse::Event::default()
-                    .event("maintenance")
-                    .data(message),
-            )),
+    let maintenance_stream =
+        BroadcastStream::new(shutdown_receiver).filter_map(|result| match result {
+            Ok(message) => Some(Ok(axum::response::sse::Event::default()
+                .event("maintenance")
+                .data(message))),
             Err(e) => {
                 error!("Failed to read shutdown notification for SSE: {e}");
                 None
             }
-        }
-    });
+        });
 
     let stream = uptime_stream.merge(maintenance_stream);
 

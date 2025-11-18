@@ -1,11 +1,19 @@
 <a
     href="{{ site.url }}"
-    role="link"
     aria-label="Visit {{ site.name }}"
     class="site-card {% for tag in site.tags %}{{ tag }}{% endfor %}"
     role="listitem"
+    data-site-name="{{ site.name }}"
+    data-tags="{% for tag in site.tags %}{{ tag }}{% if !loop.last %},{% endif %}{% endfor %}"
 >
     <span class="site-name">{{ site.name }}</span>
+    {% if !site.tags.is_empty() %}
+    <ul class="tags tags-inline" aria-label="Tags for {{ site.name }}">
+        {% for tag in site.tags %}
+        <li class="tag" data-tag="{{ tag }}">{{ tag }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
     <div
         class="uptime-history"
         role="img"
@@ -17,6 +25,9 @@
     </div>
     <div class="uptime" role="status" aria-live="polite" aria-atomic="true">
         <span class="status-text">Loading</span>
-        <span class="uptime-percentage">{{ site.uptime_percentage }}%</span>
+        <div class="uptime-details">
+            <span class="uptime-percentage">{{ site.uptime_percentage }}%</span>
+            <span class="avg-response-time">Avg -- ms</span>
+        </div>
     </div>
 </a>

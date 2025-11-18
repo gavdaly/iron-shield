@@ -6,6 +6,7 @@ import "./style.css";
 import faviconUrl from "./favicon.svg";
 import { initClock } from "./clock.ts";
 import { initUptimeSSE } from "./uptime.ts";
+import { initSiteFilters } from "./filters.ts";
 
 /**
  * Replace the static favicon reference with the bundled asset URL.
@@ -23,6 +24,7 @@ function applyFavicon(): void {
 function bootstrap(): void {
   applyFavicon();
   initClock();
+  initSiteFilters();
   initUptimeSSE();
 }
 

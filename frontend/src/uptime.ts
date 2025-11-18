@@ -74,9 +74,13 @@ function updateSiteCard(info: UptimeInfo): void {
       uptimeElement.className = `uptime ${normalizedStatus}`;
       const statusText = formatStatus(normalizedStatus);
       const percentage = info.uptime_percentage.toFixed(1);
+      const averageResponse = formatAverageResponseLabel(info.history);
       uptimeElement.innerHTML = `
         <span class="status-text">${statusText}</span>
-        <span class="uptime-percentage">${percentage}%</span>
+        <div class="uptime-details">
+          <span class="uptime-percentage">${percentage}%</span>
+          <span class="avg-response-time">${averageResponse}</span>
+        </div>
       `;
     }
 
@@ -251,6 +255,28 @@ function formatPopoverDetail(status: string, responseTime?: number | null): stri
   }
 
   return `Response ${formatResponseTime(responseTime)}`;
+}
+
+function formatAverageResponseLabel(history: HistorySample[]): string {
+  const average = calculateAverageResponseTime(history);
+  if (average === null) {
+    return "Avg -- ms";
+  }
+
+  return `Avg ${formatResponseTime(average)}`;
+}
+
+function calculateAverageResponseTime(history: HistorySample[]): number | null {
+  const responseTimes = history
+    .map((sample) => sample.response_time_ms)
+    .filter((value): value is number => typeof value === "number" && !Number.isNaN(value) && value >= 0);
+
+  if (responseTimes.length === 0) {
+    return null;
+  }
+
+  const total = responseTimes.reduce((sum, value) => sum + value, 0);
+  return total / responseTimes.length;
 }
 
 function formatResponseTime(value?: number | null): string {
