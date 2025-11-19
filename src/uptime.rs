@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::telemetry;
+use crate::telemetry::{self, telemetry_destination};
 use axum::{extract::State, response::Sse};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -499,15 +499,6 @@ pub async fn uptime_stream(
     let stream = uptime_stream.merge(maintenance_stream);
 
     Sse::new(stream)
-}
-
-fn telemetry_destination(state: &Arc<UptimeState>) -> Option<(String, String)> {
-    let config_guard = state.config.read().ok()?;
-    let endpoint = config_guard.opentelemetry_endpoint.clone()?;
-    if endpoint.trim().is_empty() {
-        return None;
-    }
-    Some((endpoint, config_guard.site_name.clone()))
 }
 
 /// Helper function to calculate the uptime percentage based on site history

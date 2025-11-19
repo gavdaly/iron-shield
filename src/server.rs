@@ -14,6 +14,7 @@ use crate::config::{ConfigWatcher, CONFIG_FILE};
 use crate::error::Result;
 use crate::index::generate_index;
 use crate::settings::save_config;
+use crate::telemetry::track_site_click;
 use crate::uptime::{uptime_stream, UptimeState};
 use axum::{
     routing::{get, post},
@@ -113,6 +114,7 @@ pub async fn run(
     let app = Router::new()
         .route("/", get(generate_index))
         .route("/api/config", post(save_config))
+        .route("/api/telemetry/click", post(track_site_click))
         .route("/uptime", get(uptime_stream))
         .nest_service("/static", ServeDir::new(static_dir))
         .with_state(uptime_state.clone());

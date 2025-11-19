@@ -1,8 +1,34 @@
 use crate::error::Result;
 use crate::uptime::{snapshot_current_histories, UptimeState};
-use serde::Serialize;
+use axum::{
+    extract::{Json, State},
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::debug;
+use tracing::{debug, warn};
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct SiteClickEvent {
+    pub site_name: String,
+    pub site_url: String,
+}
+
+#[derive(Serialize)]
+struct HeaderRecord {
+    name: String,
+    value: String,
+}
+
+#[derive(Serialize)]
+struct ClickTelemetryPayload {
+    dashboard_name: String,
+    generated_at: u64,
+    site_name: String,
+    site_url: String,
+    headers: Vec<HeaderRecord>,
+}
 
 /// Payload delivered to the OpenTelemetry collector endpoint.
 #[derive(Serialize)]
@@ -63,10 +89,69 @@ pub async fn send_uptime_snapshot(
             .collect(),
     };
 
+    post_telemetry(&endpoint, &payload).await
+}
+
+/// Receive click tracking events from the frontend and forward them to the telemetry collector.
+pub async fn track_site_click(
+    State(state): State<Arc<UptimeState>>,
+    headers: HeaderMap,
+    Json(payload): Json<SiteClickEvent>,
+) -> impl IntoResponse {
+    if payload.site_name.trim().is_empty() || payload.site_url.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            "site_name and site_url are required",
+        )
+            .into_response();
+    }
+
+    if let Some((endpoint, dashboard_name)) = telemetry_destination(&state) {
+        let header_records = header_records(&headers);
+        let click = payload.clone();
+        tokio::spawn(async move {
+            let telemetry_payload = ClickTelemetryPayload {
+                dashboard_name,
+                generated_at: current_timestamp(),
+                site_name: click.site_name,
+                site_url: click.site_url,
+                headers: header_records,
+            };
+
+            if let Err(err) = post_telemetry(&endpoint, &telemetry_payload).await {
+                warn!("Failed to send click telemetry: {err}");
+            }
+        });
+    }
+
+    StatusCode::ACCEPTED.into_response()
+}
+
+#[must_use]
+pub fn telemetry_destination(state: &Arc<UptimeState>) -> Option<(String, String)> {
+    let config_guard = state.config.read().ok()?;
+    let endpoint = config_guard.opentelemetry_endpoint.clone()?;
+    if endpoint.trim().is_empty() {
+        return None;
+    }
+    Some((endpoint, config_guard.site_name.clone()))
+}
+
+fn header_records(headers: &HeaderMap) -> Vec<HeaderRecord> {
+    headers
+        .iter()
+        .map(|(name, value)| HeaderRecord {
+            name: name.as_str().to_string(),
+            value: String::from_utf8_lossy(value.as_bytes()).to_string(),
+        })
+        .collect()
+}
+
+async fn post_telemetry(endpoint: &str, payload: &impl Serialize) -> Result<()> {
     let client = reqwest::Client::new();
     let response = client
-        .post(&endpoint)
-        .json(&payload)
+        .post(endpoint)
+        .json(payload)
         .send()
         .await
         .map_err(|err| {

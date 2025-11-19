@@ -14,6 +14,7 @@ import { initUptimeSSE } from "./uptime.ts";
 import { initSiteFilters } from "./filters.ts";
 import { initSiteStatusNotifications } from "./notifications.ts";
 import { initSettingsPanel } from "./settings.ts";
+import { initSiteClickTelemetry } from "./telemetry.ts";
 
 /**
  * Replace the static favicon reference with the bundled asset URL.
@@ -35,6 +36,7 @@ function bootstrap(): void {
   initSiteStatusNotifications();
   initSettingsPanel();
   initUptimeSSE();
+  initSiteClickTelemetry();
 }
 
 document.addEventListener("DOMContentLoaded", bootstrap);
