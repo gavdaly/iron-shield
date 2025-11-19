@@ -2,32 +2,32 @@
 [data-time="morning"] {
     background: linear-gradient(
         135deg,
-        oklab(0.586186 -0.03387 -0.149485),
-        oklab(0.799575 -0.110907 -0.095441)
+        var(--color-morning-gradient-start),
+        var(--color-morning-gradient-end)
     );
 }
 
 [data-time="afternoon"] {
     background: linear-gradient(
         135deg,
-        oklab(0.663162 -0.131698 0.119743),
-        oklab(0.84222 -0.105681 0.128094)
+        var(--color-afternoon-gradient-start),
+        var(--color-afternoon-gradient-end)
     );
 }
 
 [data-time="evening"] {
     background: linear-gradient(
         135deg,
-        oklab(0.735651 0.13488 0.093427),
-        oklab(0.827763 0.059926 0.095896)
+        var(--color-evening-gradient-start),
+        var(--color-evening-gradient-end)
     );
 }
 
 [data-time="night"] {
     background: linear-gradient(
         135deg,
-        oklab(0.383418 0.093544 -0.108582),
-        oklab(0.778663 -0.11702 -0.056145)
+        var(--color-night-gradient-start),
+        var(--color-night-gradient-end)
     );
 }
 
@@ -37,8 +37,8 @@
     -webkit-backdrop-filter: blur(10px);
     border-radius: 16px;
     padding: 2rem;
-    box-shadow: 0 8px 32px oklab(0 0 0 / 0.2);
-    border: 1px solid oklab(1 0 0 / 0.18);
+    box-shadow: 0 8px 32px var(--color-shadow);
+    border: 1px solid var(--color-border-clock);
     text-align: center;
     max-width: 90%;
     width: 400px;
@@ -56,8 +56,8 @@
     font-size: var(--text-8xl);
     font-weight: var(--font-weight-semibold);
     letter-spacing: var(--letter-spacing-widest);
-    text-shadow: 0 2px 4px oklab(0 0 0 / 0.2);
-    color: white;
+    text-shadow: 0 2px 4px var(--color-shadow);
+    color: var(--color-white);
 }
 
 @media (max-width: 992px) {

@@ -25,8 +25,8 @@
     backdrop-filter: blur(10px);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 8px 32px oklab(0 0 0 / 0.3);
-    border: 1px solid oklab(1 0 0 / 0.5);
+    box-shadow: 0 8px 32px var(--color-shadow-sites);
+    border: 1px solid var(--color-border-sites);
     min-height: 44px;
     transition: var(--transition-color);
 }
@@ -39,7 +39,7 @@
     grid-area: site-name;
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-semibold);
-    text-shadow: 0 3px 12px oklab(0 0 0 / 0.65);
+    text-shadow: 0 3px 12px var(--color-shadow-text-sites);
     color: var(--color-text-primary);
 }
 
@@ -87,7 +87,7 @@
 }
 
 .uptime.loading {
-    background: oklab(0.412834 0 0);
+    background: var(--color-loading-bg-sites);
     color: var(--color-text-secondary);
 }
 
@@ -146,7 +146,7 @@
 }
 
 .history-bar.loading {
-    background: oklab(0.467602 0 0);
+    background: var(--color-loading-history-bar);
     opacity: 1;
 }
 
@@ -174,7 +174,7 @@
     background: var(--color-bg-secondary);
     color: var(--color-text-primary);
     font-size: var(--text-xs);
-    box-shadow: 0 8px 20px oklab(0 0 0 / 0.45);
+    box-shadow: 0 8px 20px var(--color-shadow-popover);
     max-width: 200px;
 }
 
@@ -227,7 +227,7 @@
 .site a:focus {
     background: var(--color-surface-hover);
     transform: translateY(-3px);
-    box-shadow: 0 4px 15px oklab(0 0 0 / 0.2);
+    box-shadow: 0 4px 15px var(--color-shadow-site-hover);
     transition: var(--transition-all);
 }
 
@@ -246,7 +246,7 @@
 }
 
 .tag {
-    background: oklab(0.321791 -0.018618 -0.067294 / 0.65);
+    background: var(--color-tag-bg);
     color: var(--color-accent-primary);
     font-size: calc(var(--text-xs) - 0.1rem);
     font-weight: var(--font-weight-medium);

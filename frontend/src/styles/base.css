@@ -60,6 +60,32 @@
     --color-overlay: oklab(0 0 0 / 0.7);
     --dialog-panel-bg: oklab(0.192414 -0.001512 -0.025641 / 0.92);
     --dialog-panel-border: oklab(1 0 0 / 0.08);
+    --color-morning-gradient-start: oklab(0.586186 -0.03387 -0.149485);
+    --color-morning-gradient-end: oklab(0.799575 -0.110907 -0.095441);
+    --color-afternoon-gradient-start: oklab(0.663162 -0.131698 0.119743);
+    --color-afternoon-gradient-end: oklab(0.84222 -0.105681 0.128094);
+    --color-evening-gradient-start: oklab(0.735651 0.13488 0.093427);
+    --color-evening-gradient-end: oklab(0.827763 0.059926 0.095896);
+    --color-night-gradient-start: oklab(0.383418 0.093544 -0.108582);
+    --color-night-gradient-end: oklab(0.778663 -0.11702 -0.056145);
+    --color-shadow: oklab(0 0 0 / 0.2);
+    --color-border-clock: oklab(1 0 0 / 0.18);
+    --color-white: oklab(1 0 0);
+    --color-overlay-filters: oklab(0 0 0 / 0.75);
+    --color-shadow-filters: oklab(0 0 0 / 0.45);
+    --color-text-active-filter: var(--color-white);
+    --color-maintenance-bg: oklab(0.861472 0.018175 0.141144);
+    --color-maintenance-text: oklab(0.239292 0 0);
+    --color-maintenance-shadow: oklab(0 0 0 / 0.15);
+    --color-danger-hover: oklab(0.603605 0.199021 0.085373);
+    --color-shadow-sites: oklab(0 0 0 / 0.3);
+    --color-border-sites: oklab(1 0 0 / 0.5);
+    --color-shadow-text-sites: oklab(0 0 0 / 0.65);
+    --color-loading-bg-sites: oklab(0.412834 0 0);
+    --color-loading-history-bar: oklab(0.467602 0 0);
+    --color-shadow-popover: oklab(0 0 0 / 0.45);
+    --color-shadow-site-hover: oklab(0 0 0 / 0.2);
+    --color-tag-bg: oklab(0.321791 -0.018618 -0.067294 / 0.65);
 
     --transition-base: all 0.3s ease;
     --transition-color:

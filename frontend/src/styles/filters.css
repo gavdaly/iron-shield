@@ -51,7 +51,7 @@
 .site-filters-overlay {
     position: fixed;
     inset: 0;
-    background: oklab(0 0 0 / 0.75);
+    background: var(--color-overlay-filters);
     display: flex;
     justify-content: flex-end;
     align-items: flex-start;
@@ -78,7 +78,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    box-shadow: 0 24px 80px oklab(0 0 0 / 0.45);
+    box-shadow: 0 24px 80px var(--color-shadow-filters);
 }
 
 .site-filters-header {
@@ -168,7 +168,7 @@
 .tag-filter.tag-filter--active,
 .tag-filter[aria-pressed="true"] {
     background: var(--color-accent-primary);
-    color: oklab(0.177638 0 0);
+    color: var(--color-text-active-filter);
     border-color: transparent;
 }
 
