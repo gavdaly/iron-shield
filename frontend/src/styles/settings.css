@@ -27,14 +27,15 @@ body.settings-modal-open {
     position: relative;
     width: min(960px, 95vw);
     max-height: 90vh;
-    background: var(--color-bg-secondary);
+    background: var(--dialog-panel-bg);
     border-radius: 24px;
-    border: 1px solid oklab(1 0 0 / 0.08);
+    border: 1px solid var(--dialog-panel-border);
     box-shadow: 0 24px 80px oklab(0 0 0 / 0.45);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     z-index: 1;
+    backdrop-filter: blur(12px);
 }
 
 .settings-modal__header {
@@ -120,16 +121,6 @@ body.settings-modal-open {
     flex-direction: column;
     gap: 0.35rem;
     margin-bottom: 1rem;
-}
-
-.form-group input,
-.form-group select {
-    padding: 0.75rem;
-    border-radius: 10px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-tertiary);
-    color: var(--color-text-primary);
-    font-size: var(--text-base);
 }
 
 .btn {

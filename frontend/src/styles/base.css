@@ -58,6 +58,8 @@
     --color-surface: oklab(0.1053 0.038217 -0.012145 / 0.2);
     --color-surface-hover: oklab(0.1053 0.038217 -0.012145 / 0.3);
     --color-overlay: oklab(0 0 0 / 0.7);
+    --dialog-panel-bg: oklab(0.192414 -0.001512 -0.025641 / 0.92);
+    --dialog-panel-border: oklab(1 0 0 / 0.08);
 
     --transition-base: all 0.3s ease;
     --transition-color:
@@ -122,4 +124,35 @@ a:not(.focus-visible) {
 a.focus-visible {
     outline: 2px solid var(--color-accent-primary);
     outline-offset: 2px;
+}
+
+label,
+.filter-label {
+    font-size: var(--text-sm);
+    letter-spacing: var(--letter-spacing-wide);
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    display: inline-block;
+}
+
+input,
+select,
+textarea {
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    font-size: var(--text-base);
+    font-family: inherit;
+    transition: var(--transition-base);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--color-accent-primary);
+    outline-offset: 2px;
+    border-color: transparent;
+    background: var(--color-bg-secondary);
 }
