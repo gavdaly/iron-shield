@@ -132,6 +132,14 @@ body {
     gap: 0.4rem;
 }
 
+.site-settings-link {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    text-decoration: none;
+    z-index: 1200;
+}
+
 .site-filter-button:hover,
 .site-filter-button:focus-visible {
     background: var(--color-surface-hover);
