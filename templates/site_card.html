@@ -1,12 +1,11 @@
-<a
-    href="{{ site.url }}"
+<div
     aria-label="Visit {{ site.name }}"
     class="site-card {% for tag in site.tags %}{{ tag }}{% endfor %}"
     role="listitem"
     data-site-name="{{ site.name }}"
     data-tags="{% for tag in site.tags %}{{ tag }}{% if !loop.last %},{% endif %}{% endfor %}"
 >
-    <span class="site-name">{{ site.name }}</span>
+    <a href="{{ site.url }}" class="site-name">{{ site.name }}</a>
     {% if !site.tags.is_empty() %}
     <ul class="tags tags-inline" aria-label="Tags for {{ site.name }}">
         {% for tag in site.tags %}
@@ -30,4 +29,4 @@
             <span class="avg-response-time">Avg -- ms</span>
         </div>
     </div>
-</a>
+</div>
