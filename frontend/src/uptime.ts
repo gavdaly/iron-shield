@@ -1,3 +1,5 @@
+import { notifySiteStatusChange } from "./notifications.ts";
+
 /**
  * Data payload describing the current uptime status of a site card.
  */
@@ -21,6 +23,10 @@ const HISTORY_ANIMATION_DURATION = 420;
  * Establish the SSE connection for uptime updates and update cards on new events.
  */
 export function initUptimeSSE(): void {
+  if (!document.querySelector(".site-card")) {
+    return;
+  }
+
   const eventSource = new EventSource("/uptime");
 
   eventSource.onmessage = (event) => {
@@ -82,6 +88,12 @@ function updateSiteCard(info: UptimeInfo): void {
           <span class="avg-response-time">${averageResponse}</span>
         </div>
       `;
+
+      notifySiteStatusChange({
+        siteId: info.site_id,
+        status: normalizedStatus,
+        responseTimeMs: info.response_time_ms ?? null,
+      });
     }
 
     if (historyElement) {

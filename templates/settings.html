@@ -8,6 +8,7 @@
             href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Source+Serif+Pro:wght@400;600&display=swap"
             rel="stylesheet"
         />
+        <script src="/static/main.js" defer></script>
         <title>Configuration - {{config.site_name}}</title>
         <span id="current-time" style="display: none;">{{current_time}}</span>
         <style>
@@ -147,11 +148,47 @@
             .global-settings {
                 margin-bottom: 2rem;
             }
+
+            .settings-toolbar {
+                display: flex;
+                justify-content: flex-end;
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+            }
         </style>
     </head>
     <body>
         <div class="settings-container">
             <a href="/" class="back-to-dashboard">← Back to Dashboard</a>
+
+            <div class="settings-toolbar">
+                <button
+                    id="site-notification-toggle"
+                    class="site-filter-button site-notification-button"
+                    type="button"
+                    aria-haspopup="false"
+                    aria-label="Enable system notifications for site status changes"
+                >
+                    <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        class="site-filter-icon"
+                    >
+                        <path
+                            d="M12 22a2 2 0 002-2H10a2 2 0 002 2zm6-6V11a6 6 0 00-5-5.91V4a1 1 0 10-2 0v1.09A6 6 0 006 11v5l-1 1v1h14v-1l-1-1z"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                        />
+                    </svg>
+                    <span class="notification-button-label">Enable alerts</span>
+                </button>
+            </div>
             
             <h1>Configuration Settings</h1>
             

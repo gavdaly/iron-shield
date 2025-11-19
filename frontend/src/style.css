@@ -132,6 +132,16 @@ body {
     gap: 0.4rem;
 }
 
+.site-filter-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.site-notification-button--granted {
+    border-color: var(--color-success);
+    color: var(--color-success);
+}
+
 .site-settings-link {
     position: fixed;
     bottom: 1.25rem;
