@@ -162,7 +162,7 @@ body {
     width: min(90vw, 480px);
     margin: 0;
     padding: 1.5rem;
-    background: var(--color-surface);
+    background: rgba(15, 20, 32, 0.92);
     backdrop-filter: blur(10px);
     border-radius: 16px;
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -756,9 +756,9 @@ a.focus-visible {
 }
 
 .tag {
-    background: var(--color-accent-primary);
-    opacity: 0.3;
-    font-size: var(--text-xs);
+    background: rgba(24, 52, 86, 0.65);
+    color: var(--color-accent-primary);
+    font-size: calc(var(--text-xs) - 0.1rem);
     font-weight: var(--font-weight-medium);
     padding: 0.25rem 0.75rem;
     border-radius: 1rem;
