@@ -1,9 +1,10 @@
 use std::{
+    env,
     future::ready,
     path::{Path, PathBuf},
 };
 
-use rspack::builder::{Builder, ExperimentsBuilder};
+use rspack::builder::{Builder, Devtool, ExperimentsBuilder};
 use rspack_core::{
     Compiler, ModuleOptions, ModuleRule, ModuleRuleEffect, ModuleRuleUse, ModuleRuleUseLoader,
     ModuleType, OutputOptions, RuleSetCondition,
@@ -14,6 +15,8 @@ use serde_json::json;
 fn main() {
     println!("cargo:rerun-if-changed=frontend/src");
 
+    let enable_sourcemaps = !matches!(env::var("PROFILE").as_deref(), Ok("release"));
+
     let dist_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("frontend")
         .join("dist");
@@ -23,12 +26,12 @@ fn main() {
         .build()
         .expect("failed to create tokio runtime for Rspack");
 
-    rt.block_on(Box::pin(run_rspack_bundle()));
+    rt.block_on(Box::pin(run_rspack_bundle(enable_sourcemaps)));
 
     println!("cargo:rustc-env=FRONTEND_DIST_DIR={}", dist_dir.display());
 }
 
-async fn run_rspack_bundle() {
+async fn run_rspack_bundle(enable_sourcemaps: bool) {
     let context = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("frontend");
 
     Box::pin(within_compiler_context_for_testing(async move {
@@ -88,7 +91,8 @@ async fn run_rspack_bundle() {
         module_builder.rule(ts_rule);
         module_builder.rule(svg_rule);
 
-        let mut compiler = Compiler::builder()
+        let mut compiler_builder = Compiler::builder();
+        compiler_builder
             .context(context)
             .entry("main", "./src/index.ts")
             .experiments(ExperimentsBuilder::default().css(true))
@@ -99,7 +103,13 @@ async fn run_rspack_bundle() {
                     .asset_module_filename("[name][ext]".into()),
             )
             .module(module_builder)
-            .enable_loader_swc()
+            .enable_loader_swc();
+
+        if enable_sourcemaps {
+            compiler_builder.devtool(Devtool::SourceMap);
+        }
+
+        let mut compiler = compiler_builder
             .build()
             .expect("failed to build Rspack compiler");
 
