@@ -1,0 +1,94 @@
+/* Clock module (clock.ts) */
+[data-time="morning"] {
+    background: linear-gradient(
+        135deg,
+        oklab(0.586186 -0.03387 -0.149485),
+        oklab(0.799575 -0.110907 -0.095441)
+    );
+}
+
+[data-time="afternoon"] {
+    background: linear-gradient(
+        135deg,
+        oklab(0.663162 -0.131698 0.119743),
+        oklab(0.84222 -0.105681 0.128094)
+    );
+}
+
+[data-time="evening"] {
+    background: linear-gradient(
+        135deg,
+        oklab(0.735651 0.13488 0.093427),
+        oklab(0.827763 0.059926 0.095896)
+    );
+}
+
+[data-time="night"] {
+    background: linear-gradient(
+        135deg,
+        oklab(0.383418 0.093544 -0.108582),
+        oklab(0.778663 -0.11702 -0.056145)
+    );
+}
+
+#clock-container {
+    background: var(--color-surface);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px oklab(0 0 0 / 0.2);
+    border: 1px solid oklab(1 0 0 / 0.18);
+    text-align: center;
+    max-width: 90%;
+    width: 400px;
+    margin: 1rem auto;
+    min-height: 44px;
+    transition: var(--transition-color);
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+#clock-container:hover {
+    background: var(--color-surface-hover);
+}
+
+#time {
+    font-size: var(--text-8xl);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--letter-spacing-widest);
+    text-shadow: 0 2px 4px oklab(0 0 0 / 0.2);
+    color: white;
+}
+
+@media (max-width: 992px) {
+    #clock-container {
+        width: 350px;
+        padding: 1.5rem;
+    }
+
+    #time {
+        font-size: var(--text-7xl);
+    }
+}
+
+@media (max-width: 768px) {
+    #clock-container {
+        width: 300px;
+        padding: 1.25rem;
+    }
+
+    #time {
+        font-size: var(--text-6xl);
+    }
+}
+
+@media (max-width: 480px) {
+    #clock-container {
+        width: 90%;
+        padding: 1rem;
+    }
+
+    #time {
+        font-size: var(--text-5xl);
+    }
+}

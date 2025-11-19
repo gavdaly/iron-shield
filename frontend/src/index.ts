@@ -2,7 +2,12 @@
  * Entry point for the Iron Shield dashboard frontend bundle.
  * Sets up global styles, favicon handling, and bootstraps the clock and uptime modules.
  */
-import "./style.css";
+import "./styles/base.css";
+import "./styles/clock.css";
+import "./styles/filters.css";
+import "./styles/notifications.css";
+import "./styles/sites.css";
+import "./styles/settings.css";
 import faviconUrl from "./favicon.svg";
 import { initClock } from "./clock.ts";
 import { initUptimeSSE } from "./uptime.ts";
