@@ -15,6 +15,7 @@ import { initSiteFilters } from "./filters.ts";
 import { initSiteStatusNotifications } from "./notifications.ts";
 import { initSettingsPanel } from "./settings.ts";
 import { initSiteClickTelemetry } from "./telemetry.ts";
+import { initThemeManager } from "./theme.ts";
 
 /**
  * Replace the static favicon reference with the bundled asset URL.
@@ -31,6 +32,7 @@ function applyFavicon(): void {
  */
 function bootstrap(): void {
   applyFavicon();
+  initThemeManager();
   initClock();
   initSiteFilters();
   initSiteStatusNotifications();

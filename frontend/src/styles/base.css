@@ -94,6 +94,40 @@
     --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --color-focus-ring: oklab(0.85 -0.02 -0.12);
     --focus-ring-offset: 4px;
+
+    --theme-clock-bg: var(--color-surface);
+    --theme-clock-bg-hover: var(--color-surface-hover);
+    --theme-button-bg: var(--color-surface);
+    --theme-button-bg-hover: var(--color-surface-hover);
+    --theme-button-border: var(--color-border);
+    --theme-button-text: var(--color-text-primary);
+    --theme-card-bg: var(--color-surface);
+    --theme-card-hover-bg: var(--color-surface-hover);
+    --theme-card-border: var(--color-border-sites);
+    --theme-btn-primary-bg: var(--color-accent-primary);
+    --theme-btn-primary-bg-hover: var(--color-accent-secondary);
+    --theme-btn-secondary-bg: var(--color-bg-tertiary);
+    --theme-btn-secondary-bg-hover: var(--color-bg-secondary);
+    --theme-clock-text: var(--color-white);
+    --theme-site-name-text: var(--color-text-primary);
+}
+
+:root[data-theme="light"] {
+    --theme-clock-bg: oklab(1 0 0 / 0.65);
+    --theme-clock-bg-hover: oklab(1 0 0 / 0.75);
+    --theme-button-bg: oklab(1 0 0 / 0.55);
+    --theme-button-bg-hover: oklab(1 0 0 / 0.7);
+    --theme-button-border: oklab(0.8 0 0 / 0.65);
+    --theme-button-text: oklab(0.18 0 0);
+    --theme-card-bg: oklab(1 0 0 / 0.6);
+    --theme-card-hover-bg: oklab(1 0 0 / 0.75);
+    --theme-card-border: oklab(0.75 0 0 / 0.5);
+    --theme-btn-primary-bg: oklab(0.74 -0.09 -0.15);
+    --theme-btn-primary-bg-hover: oklab(0.69 -0.04 -0.14);
+    --theme-btn-secondary-bg: oklab(0.98 0 0 / 0.75);
+    --theme-btn-secondary-bg-hover: oklab(0.94 0 0 / 0.85);
+    --theme-clock-text: oklab(0.19 0 0);
+    --theme-site-name-text: oklab(0.2 0 0);
 }
 
 @keyframes fadeIn {

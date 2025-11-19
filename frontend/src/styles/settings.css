@@ -127,7 +127,7 @@ body.settings-modal-open {
     padding: 0.65rem 1.25rem;
     border-radius: 999px;
     border: none;
-    background: var(--color-accent-primary);
+    background: var(--theme-btn-primary-bg);
     color: var(--color-text-primary);
     font-weight: var(--font-weight-semibold);
     cursor: pointer;
@@ -136,17 +136,18 @@ body.settings-modal-open {
 
 .btn:hover,
 .btn:focus-visible {
-    background: var(--color-accent-secondary);
+    background: var(--theme-btn-primary-bg-hover);
 }
 
 .btn-secondary {
-    background: var(--color-bg-tertiary);
+    background: var(--theme-btn-secondary-bg);
     color: var(--color-text-secondary);
 }
 
 .btn-secondary:hover,
 .btn-secondary:focus-visible {
     color: var(--color-text-primary);
+    background: var(--theme-btn-secondary-bg-hover);
 }
 
 .btn-danger {

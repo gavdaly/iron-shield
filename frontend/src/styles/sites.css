@@ -20,18 +20,18 @@
     column-gap: 1.5rem;
     row-gap: 0.75rem;
     width: 100%;
-    background: var(--color-surface);
+    background: var(--theme-card-bg);
     backdrop-filter: blur(10px);
     border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 8px 32px var(--color-shadow-sites);
-    border: 1px solid var(--color-border-sites);
+    border: 1px solid var(--theme-card-border);
     min-height: 44px;
     transition: var(--transition-color);
 }
 
 .site-card:hover {
-    background: var(--color-surface-hover);
+    background: var(--theme-card-hover-bg);
 }
 
 .site-card .site-name {
@@ -39,7 +39,7 @@
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-semibold);
     text-shadow: 0 3px 12px var(--color-shadow-text-sites);
-    color: var(--color-text-primary);
+    color: var(--theme-site-name-text);
     width: auto;
     display: inline-flex;
     border-radius: 0.75rem;
@@ -48,7 +48,7 @@
 
 .site-card .site-name:visited,
 .site-card .site-name:link {
-    color: var(--color-text-primary);
+    color: var(--theme-site-name-text);
 }
 
 .site-card .site-name:focus-visible {
