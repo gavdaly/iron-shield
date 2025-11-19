@@ -20,10 +20,9 @@
     column-gap: 1.5rem;
     row-gap: 0.75rem;
     width: 100%;
-    margin-bottom: 0.5rem;
     background: var(--color-surface);
     backdrop-filter: blur(10px);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 2rem;
     box-shadow: 0 8px 32px var(--color-shadow-sites);
     border: 1px solid var(--color-border-sites);
@@ -261,39 +260,49 @@
 
 @media (max-width: 1200px) {
     #sites {
-        max-width: 1000px;
-        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+        width: 100%;
     }
 
-    .site {
-        max-width: 180px;
+    .site-card {
+        column-gap: 1rem;
+        padding: 1.75rem;
     }
 }
 
-@media (max-width: 992px) {
-    #sites {
-        max-width: 800px;
-        gap: 0.7rem;
+@media (max-width: 1024px) {
+    .site-card {
+        grid-template-columns: minmax(0, 1fr) 13rem;
+        grid-template-areas:
+            "site-name uptime"
+            "tags uptime"
+            "uptime-history uptime";
     }
 
-    .site {
-        max-width: 160px;
+    .tags-inline {
+        justify-self: start;
+    }
+
+    .uptime-history {
+        margin-top: 0.25rem;
     }
 }
 
 @media (max-width: 768px) {
     #sites {
-        max-width: 600px;
-        gap: 0.6rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.85rem;
+        padding: 0;
     }
 
-    .site {
-        max-width: 140px;
+    .site-card {
+        padding: 1.5rem;
+        column-gap: 1rem;
     }
 
-    .site a {
-        padding: 0.8rem 1.2rem;
-        min-height: 44px;
+    .site-card .site-name {
+        font-size: var(--text-xl);
     }
 }
 
@@ -303,14 +312,14 @@
         gap: 0.5rem;
     }
 
-    .site {
-        max-width: 100%;
+    .tag {
+        padding: 0.35rem 0.85rem;
+        margin: 0;
     }
 
     .site a {
         width: 100%;
         max-width: 200px;
         padding: 1rem;
-        min-height: 44px;
     }
 }
