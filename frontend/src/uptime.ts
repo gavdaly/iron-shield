@@ -1,4 +1,5 @@
 import { notifySiteStatusChange } from "./notifications.ts";
+import { prefersReducedMotion } from "./a11y.ts";
 
 /**
  * Data payload describing the current uptime status of a site card.
@@ -171,7 +172,6 @@ function buildHistoryBars(
 
     const bar = document.createElement("span");
     bar.className = `history-bar ${normalizedStatus}`;
-    bar.setAttribute("tabindex", "0");
     const anchorId = `${siteSlug}-history-${index}`;
     bar.id = anchorId;
     bar.setAttribute(
@@ -204,6 +204,12 @@ function animateHistoryTransition(
   siteId: string,
   historyKey: string,
 ): void {
+  if (prefersReducedMotion()) {
+    buildHistoryBars(element, history, siteId, { highlightNew: true, historyKey });
+    flushPendingHistory(element, siteId);
+    return;
+  }
+
   const wrappers = Array.from(element.querySelectorAll<HTMLElement>(".history-bar-wrapper"));
   if (wrappers.length === 0) {
     buildHistoryBars(element, history, siteId, { historyKey });

@@ -1,3 +1,5 @@
+import { trapFocus } from "./a11y.ts";
+
 type SiteCard = HTMLElement & {
   dataset: DOMStringMap & {
     siteName?: string;
@@ -67,6 +69,11 @@ function setupFilterModal(searchInput: HTMLInputElement | null): void {
   }
 
   let onDocumentKeydown: ((event: KeyboardEvent) => void) | null = null;
+  let releaseFocusTrap: (() => void) | null = null;
+
+  const updateToggleButtonLabel = (expanded: boolean): void => {
+    openButton.setAttribute("aria-label", expanded ? "Close filters" : "Open filters");
+  };
 
   const openModal = (): void => {
     if (!overlay.hidden) {
@@ -74,7 +81,13 @@ function setupFilterModal(searchInput: HTMLInputElement | null): void {
     }
 
     overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
     openButton.setAttribute("aria-expanded", "true");
+    updateToggleButtonLabel(true);
+    releaseFocusTrap?.();
+    if (panel) {
+      releaseFocusTrap = trapFocus(panel);
+    }
     requestAnimationFrame(() => {
       searchInput?.focus();
       searchInput?.select();
@@ -95,8 +108,14 @@ function setupFilterModal(searchInput: HTMLInputElement | null): void {
     }
 
     overlay.hidden = true;
+    overlay.setAttribute("aria-hidden", "true");
     openButton.setAttribute("aria-expanded", "false");
+    updateToggleButtonLabel(false);
     openButton.focus();
+    if (releaseFocusTrap) {
+      releaseFocusTrap();
+      releaseFocusTrap = null;
+    }
 
     if (onDocumentKeydown) {
       document.removeEventListener("keydown", onDocumentKeydown);
@@ -148,6 +167,8 @@ function renderTagButtons(
   onChange: () => void,
 ): void {
   container.innerHTML = "";
+  const buttons: HTMLButtonElement[] = [];
+
   tags.forEach((tag) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -155,6 +176,7 @@ function renderTagButtons(
     button.textContent = tag.label;
     button.dataset.tagValue = tag.value;
     button.setAttribute("aria-pressed", "false");
+    button.setAttribute("aria-selected", "false");
     button.setAttribute("role", "option");
 
     button.addEventListener("click", () => {
@@ -171,7 +193,10 @@ function renderTagButtons(
     });
 
     container.appendChild(button);
+    buttons.push(button);
   });
+
+  wireTagChipNavigation(buttons);
 }
 
 function toggleTag(button: HTMLElement, tag: string, state: Set<string>): void {
@@ -179,10 +204,12 @@ function toggleTag(button: HTMLElement, tag: string, state: Set<string>): void {
   if (state.has(normalized)) {
     state.delete(normalized);
     button.setAttribute("aria-pressed", "false");
+    button.setAttribute("aria-selected", "false");
     button.classList.remove("tag-filter--active");
   } else {
     state.add(normalized);
     button.setAttribute("aria-pressed", "true");
+    button.setAttribute("aria-selected", "true");
     button.classList.add("tag-filter--active");
   }
 }
@@ -257,4 +284,49 @@ function isEditableElement(element: Element): boolean {
 
   const contentEditableValue = element.getAttribute("contenteditable");
   return contentEditableValue === "" || contentEditableValue === "true";
+}
+
+function wireTagChipNavigation(buttons: HTMLButtonElement[]): void {
+  if (buttons.length === 0) {
+    return;
+  }
+
+  const total = buttons.length;
+  const focusButton = (index: number): void => {
+    const normalizedIndex = (index + total) % total;
+    buttons[normalizedIndex]?.focus();
+  };
+
+  const directionalKeys = new Set(["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"]);
+
+  buttons.forEach((button) => {
+    button.addEventListener("keydown", (event) => {
+      if (!directionalKeys.has(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (event.key === "Home") {
+        focusButton(0);
+        return;
+      }
+
+      if (event.key === "End") {
+        focusButton(total - 1);
+        return;
+      }
+
+      const currentIndex = buttons.indexOf(button);
+      if (currentIndex === -1) {
+        return;
+      }
+
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        focusButton(currentIndex + 1);
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        focusButton(currentIndex - 1);
+      }
+    });
+  });
 }

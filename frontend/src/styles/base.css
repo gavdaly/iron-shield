@@ -44,8 +44,8 @@
         var(--color-bg-secondary)
     );
     --color-text-primary: oklab(0.906701 0 0);
-    --color-text-secondary: oklab(0.705757 0 0);
-    --color-text-tertiary: oklab(0.545169 0 0);
+    --color-text-secondary: oklab(0.82 0 0);
+    --color-text-tertiary: oklab(0.72 0 0);
     --color-accent-primary: oklab(0.692927 -0.045509 -0.158249);
     --color-accent-secondary: oklab(0.567602 0.045749 -0.196848);
     --color-success: oklab(0.730324 -0.163837 0.104601);
@@ -92,6 +92,8 @@
         color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
     --transition-transform: transform 0.3s ease;
     --transition-all: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --color-focus-ring: oklab(0.85 -0.02 -0.12);
+    --focus-ring-offset: 4px;
 }
 
 @keyframes fadeIn {
@@ -129,6 +131,7 @@ body {
     font-size: var(--text-base);
     font-weight: var(--font-weight-regular);
     letter-spacing: var(--letter-spacing-normal);
+    line-height: 1.5;
 }
 
 .sr-only {
@@ -143,13 +146,14 @@ body {
     border: 0;
 }
 
-a:not(.focus-visible) {
+a {
+    color: inherit;
     outline: none;
 }
 
-a.focus-visible {
-    outline: 2px solid var(--color-accent-primary);
-    outline-offset: 2px;
+a:focus-visible {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: var(--focus-ring-offset);
 }
 
 label,
@@ -181,4 +185,46 @@ textarea:focus-visible {
     outline-offset: 2px;
     border-color: transparent;
     background: var(--color-bg-secondary);
+}
+
+:where(
+        button,
+        .btn,
+        .site-filter-button,
+        .toolbar-icon-button,
+        .tag-filter,
+        .remove-btn,
+        .history-bar,
+        [role="button"]
+    ) {
+    outline: none;
+}
+
+:where(
+        button,
+        .btn,
+        .site-filter-button,
+        .toolbar-icon-button,
+        .tag-filter,
+        .remove-btn,
+        .history-bar,
+        [role="button"]
+    ):focus-visible {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    body {
+        transition: none !important;
+    }
 }

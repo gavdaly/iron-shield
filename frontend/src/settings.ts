@@ -1,3 +1,5 @@
+import { trapFocus } from "./a11y.ts";
+
 interface SiteConfig {
     name: string;
     url: string;
@@ -22,6 +24,7 @@ let modalElement: HTMLElement | null = null;
 let sitesListElement: HTMLElement | null = null;
 let notificationElement: HTMLElement | null = null;
 let lastFocusedTrigger: HTMLElement | null = null;
+let releaseSettingsFocusTrap: (() => void) | null = null;
 
 export function initSettingsPanel(): void {
     modalElement = document.getElementById("settings-modal");
@@ -79,6 +82,14 @@ function openModal(trigger?: HTMLElement | null): void {
     modalElement.hidden = false;
     modalElement.setAttribute("aria-hidden", "false");
     document.body.classList.add("settings-modal-open");
+    releaseSettingsFocusTrap?.();
+    const panel = modalElement.querySelector<HTMLElement>(".settings-modal__panel");
+    if (panel) {
+        releaseSettingsFocusTrap = trapFocus(panel);
+    }
+    if (trigger) {
+        trigger.setAttribute("aria-expanded", "true");
+    }
 
     const siteNameInput = modalElement.querySelector<HTMLInputElement>("#settings-site-name");
     siteNameInput?.focus();
@@ -93,7 +104,14 @@ function closeModal(): void {
     modalElement.setAttribute("aria-hidden", "true");
     document.body.classList.remove("settings-modal-open");
     hideNotification();
-    lastFocusedTrigger?.focus();
+    if (lastFocusedTrigger) {
+        lastFocusedTrigger.setAttribute("aria-expanded", "false");
+        lastFocusedTrigger.focus();
+    }
+    if (releaseSettingsFocusTrap) {
+        releaseSettingsFocusTrap();
+        releaseSettingsFocusTrap = null;
+    }
 }
 
 function applyInitialValues(): void {

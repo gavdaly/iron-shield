@@ -38,6 +38,7 @@
         </header>
         {% when Clock::None %} {% endmatch %}
 
+        <main id="main-content" role="main">
         <nav role="navigation" aria-label="Site shortcuts">
             <div class="site-toolbar">
                 <button
@@ -69,13 +70,19 @@
                     <span class="sr-only">Open filters</span>
                 </button>
             </div>
-            <div id="site-filters-overlay" class="site-filters-overlay" hidden>
+            <div
+                id="site-filters-overlay"
+                class="site-filters-overlay"
+                hidden
+                aria-hidden="true"
+            >
                 <div
                     id="site-filters-panel"
                     class="site-filters-panel"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="site-filters-title"
+                    aria-describedby="site-filters-description"
                 >
                     <section id="site-filters" aria-label="Search and filter sites">
                         <header class="site-filters-header">
@@ -89,6 +96,9 @@
                                 ×
                             </button>
                         </header>
+                        <p id="site-filters-description" class="sr-only">
+                            Use search and tag filters to narrow the dashboard results. Press Escape to close this panel.
+                        </p>
                         <div class="filter-field">
                             <label class="filter-label" for="site-search">Search sites</label>
                             <div class="filter-input-wrapper">
@@ -101,8 +111,11 @@
                                     spellcheck="false"
                                     enterkeyhint="search"
                                     aria-label="Search sites"
+                                    aria-describedby="site-search-shortcut-hint"
                                 />
-                                <span class="filter-shortcut-hint">Press / to focus</span>
+                                <span class="filter-shortcut-hint" id="site-search-shortcut-hint">
+                                    Press / to focus
+                                </span>
                             </div>
                         </div>
                         <div class="filter-field" id="tag-filter-field">
@@ -112,16 +125,20 @@
                                 role="listbox"
                                 aria-multiselectable="true"
                                 aria-label="Tag filters"
-                                tabindex="0"
                             ></div>
                         </div>
                     </section>
                 </div>
             </div>
-            <p id="site-filter-empty" class="filter-empty-state" role="status" hidden>
+            <p id="site-filter-empty" class="filter-empty-state" role="status" aria-live="polite" hidden>
                 No sites match your search or filters.
             </p>
-            <div id="sites">
+            <div
+                id="sites"
+                role="list"
+                aria-label="Monitored sites"
+                aria-live="polite"
+            >
                 {% for site in config.sites %}
                 {% include "site_card.html" %}
                 {% endfor %}
@@ -134,6 +151,7 @@
             aria-label="Open settings"
             aria-haspopup="dialog"
             aria-controls="settings-modal"
+            aria-expanded="false"
         >
             <svg
                 aria-hidden="true"
@@ -166,10 +184,13 @@
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="settings-modal-title"
+                aria-describedby="settings-modal-description"
             >
                 <header class="settings-modal__header">
                     <div>
-                        <p class="settings-modal__eyebrow">Dashboard configuration</p>
+                        <p class="settings-modal__eyebrow" id="settings-modal-description">
+                            Dashboard configuration
+                        </p>
                         <h2 id="settings-modal-title">Settings</h2>
                     </div>
                     <button
@@ -216,6 +237,7 @@
                         id="settings-notification-area"
                         class="settings-notification"
                         role="status"
+                        aria-live="polite"
                         hidden
                     ></div>
 
@@ -323,6 +345,7 @@
             </div>
         </div>
 
+        </main>
         <script id="initial-config" type="application/json">{{config_json|safe}}</script>
     </body>
 </html>

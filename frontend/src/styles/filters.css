@@ -39,7 +39,6 @@
 .site-filter-button:focus-visible {
     background: var(--color-surface-hover);
     border-color: var(--color-accent-primary);
-    outline: none;
 }
 
 .site-settings-link {

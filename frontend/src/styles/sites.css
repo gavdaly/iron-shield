@@ -12,7 +12,7 @@
     text-decoration: none;
     color: var(--color-text-primary);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto 14rem;
+    grid-template-columns: auto minmax(0, 1fr) 14rem;
     grid-template-rows: auto auto;
     grid-template-areas:
         "site-name tags uptime"
@@ -40,11 +40,20 @@
     font-weight: var(--font-weight-semibold);
     text-shadow: 0 3px 12px var(--color-shadow-text-sites);
     color: var(--color-text-primary);
+    width: auto;
+    display: inline-flex;
+    border-radius: 0.75rem;
+    padding: 0.15rem 0.5rem;
 }
 
 .site-card .site-name:visited,
 .site-card .site-name:link {
     color: var(--color-text-primary);
+}
+
+.site-card .site-name:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .site-card .uptime-history {
@@ -242,6 +251,10 @@
 .tags-inline {
     grid-area: tags;
     align-self: center;
+    justify-self: end;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .tag {
@@ -321,5 +334,17 @@
         width: 100%;
         max-width: 200px;
         padding: 1rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #sites {
+        animation: none;
+    }
+
+    .history-bar-wrapper--falling,
+    .history-bar-wrapper--shifting,
+    .history-bar-wrapper--incoming {
+        animation: none;
     }
 }
