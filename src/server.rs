@@ -6,7 +6,6 @@
 //!
 //! The server uses Axum as the web framework and provides endpoints for:
 //! - Main dashboard page
-//! - Settings page
 //! - Configuration API
 //! - Uptime monitoring stream
 //! - Static file serving
@@ -14,7 +13,7 @@
 use crate::config::{ConfigWatcher, CONFIG_FILE};
 use crate::error::Result;
 use crate::index::generate_index;
-use crate::settings::{generate_settings, save_config};
+use crate::settings::save_config;
 use crate::uptime::{uptime_stream, UptimeState};
 use axum::{
     routing::{get, post},
@@ -39,7 +38,6 @@ const FRONTEND_DIST_DEFAULT: &str = "frontend/dist";
 ///
 /// The server serves the following endpoints:
 /// - / - Main dashboard page
-/// - /settings - Settings configuration page
 /// - /api/config - Settings API endpoint for updating configuration
 /// - /uptime - Server-Sent Events endpoint for real-time uptime updates
 /// - /static/\* - Static file serving for CSS, JS, and assets
@@ -114,7 +112,6 @@ pub async fn run(
 
     let app = Router::new()
         .route("/", get(generate_index))
-        .route("/settings", get(generate_settings))
         .route("/api/config", post(save_config))
         .route("/uptime", get(uptime_stream))
         .nest_service("/static", ServeDir::new(static_dir))

@@ -1,4 +1,5 @@
 use crate::config::Clock;
+use crate::settings::{ConfigUpdate, SiteUpdate};
 use crate::uptime::UptimeState;
 use crate::utils;
 use askama_axum::Template;
@@ -8,6 +9,7 @@ use axum::{
     response::{Html, IntoResponse},
 };
 use std::sync::Arc;
+use tracing::error;
 
 /// Template structure for the index page
 ///
@@ -50,6 +52,8 @@ pub struct IndexTemplate {
     config: crate::config::Config,
     /// Current UTC time as a formatted string for display in the template
     current_time: String,
+    /// JSON representation of the configuration for the frontend settings modal
+    config_json: String,
 }
 
 /// Generates the index template with loaded configuration
@@ -104,9 +108,37 @@ pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoR
             // Get current UTC time from utility function
             let current_time = utils::get_current_time_string();
 
+            let config_for_client = ConfigUpdate {
+                site_name: config.site_name.clone(),
+                clock: config.clock.to_string(),
+                sites: config
+                    .sites
+                    .iter()
+                    .map(|site| SiteUpdate {
+                        name: site.name.clone(),
+                        url: site.url.clone(),
+                        category: site.category.clone(),
+                        tags: site.tags.clone(),
+                    })
+                    .collect(),
+            };
+
+            let config_json = match serde_json::to_string(&config_for_client) {
+                Ok(json) => json,
+                Err(e) => {
+                    error!("Failed to serialize config for settings modal: {e}");
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Failed to serialize configuration",
+                    )
+                        .into_response();
+                }
+            };
+
             let template = IndexTemplate {
                 config,
                 current_time,
+                config_json,
             };
             match template.render() {
                 Ok(html) => Html(html).into_response(),
@@ -203,6 +235,7 @@ mod tests {
         let template = IndexTemplate {
             config,
             current_time: "10:00:00 UTC".to_string(),
+            config_json: "{}".to_string(),
         };
 
         let rendered = template

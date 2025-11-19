@@ -148,26 +148,6 @@ fn create_test_uptime_state(config_file_path: PathBuf) -> Arc<UptimeState> {
 }
 
 #[tokio::test]
-async fn test_generate_settings_success() {
-    let temp_dir =
-        tempdir().expect("Failed to create temporary directory for test_generate_settings_success");
-    let temp_config_path = temp_dir.path().join("config.json5");
-    let state = create_test_uptime_state(temp_config_path);
-    let response = iron_shield::settings::generate_settings(State(state)).await;
-    let (parts, body) = response.into_response().into_parts();
-    let body_bytes = body
-        .collect()
-        .await
-        .expect("Failed to collect response body")
-        .to_bytes();
-    let _body_string =
-        String::from_utf8(body_bytes.to_vec()).expect("Failed to convert response body to string");
-
-    assert_eq!(parts.status, StatusCode::OK);
-    // Further assertions on body_string can be added if needed, e.g., checking for template content
-}
-
-#[tokio::test]
 async fn test_save_config_success() {
     let temp_dir =
         tempdir().expect("Failed to create temporary directory for test_save_config_success");

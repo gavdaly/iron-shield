@@ -127,10 +127,13 @@
                 {% endfor %}
             </div>
         </nav>
-        <a
-            href="/settings"
+        <button
+            id="settings-open-button"
+            type="button"
             class="site-filter-button site-settings-link"
             aria-label="Open settings"
+            aria-haspopup="dialog"
+            aria-controls="settings-modal"
         >
             <svg
                 aria-hidden="true"
@@ -154,6 +157,159 @@
                 />
             </svg>
             <span>Settings</span>
-        </a>
+        </button>
+
+        <div id="settings-modal" class="settings-modal" aria-hidden="true" hidden>
+            <div class="settings-modal__overlay" data-settings-close></div>
+            <div
+                class="settings-modal__panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="settings-modal-title"
+            >
+                <header class="settings-modal__header">
+                    <div>
+                        <p class="settings-modal__eyebrow">Dashboard configuration</p>
+                        <h2 id="settings-modal-title">Settings</h2>
+                    </div>
+                    <button
+                        type="button"
+                        class="settings-close-button"
+                        aria-label="Close settings"
+                        data-settings-close
+                    >
+                        ×
+                    </button>
+                </header>
+
+                <div class="settings-scroll-area">
+                    <div class="settings-toolbar">
+                        <button
+                            id="site-notification-toggle"
+                            class="site-filter-button site-notification-button"
+                            type="button"
+                            aria-haspopup="false"
+                            aria-label="Enable system notifications for site status changes"
+                        >
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                                width="20"
+                                height="20"
+                                class="site-filter-icon"
+                            >
+                                <path
+                                    d="M12 22a2 2 0 002-2H10a2 2 0 002 2zm6-6V11a6 6 0 00-5-5.91V4a1 1 0 10-2 0v1.09A6 6 0 006 11v5l-1 1v1h14v-1l-1-1z"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.5"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                />
+                            </svg>
+                            <span class="notification-button-label">Enable alerts</span>
+                        </button>
+                    </div>
+
+                    <div
+                        id="settings-notification-area"
+                        class="settings-notification"
+                        role="status"
+                        hidden
+                    ></div>
+
+                    <section class="global-settings">
+                        <h3 class="section-title">Global Settings</h3>
+                        <div class="form-group">
+                            <label for="settings-site-name">Dashboard Name</label>
+                            <input
+                                type="text"
+                                id="settings-site-name"
+                                value="{{config.site_name}}"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="settings-clock-format">Clock Format</label>
+                            <select id="settings-clock-format">
+                                <option value="none" {% if config.clock == Clock::None %}selected{% endif %}>
+                                    No Clock
+                                </option>
+                                <option value="24hour" {% if config.clock == Clock::Hour24 %}selected{% endif %}>
+                                    24 Hour Format
+                                </option>
+                                <option value="12hour" {% if config.clock == Clock::Hour12 %}selected{% endif %}>
+                                    12 Hour Format
+                                </option>
+                            </select>
+                        </div>
+                    </section>
+
+                    <section class="sites-management">
+                        <h3 class="section-title">Sites</h3>
+                        <div class="form-group">
+                            <label for="new-site-name">Add New Site</label>
+                            <input
+                                type="text"
+                                id="new-site-name"
+                                placeholder="Site name"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="new-site-url">URL</label>
+                            <input
+                                type="text"
+                                id="new-site-url"
+                                placeholder="https://example.com"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="new-site-category">Category</label>
+                            <input
+                                type="text"
+                                id="new-site-category"
+                                placeholder="Category (e.g., Work)"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="new-site-tags">Tags</label>
+                            <input
+                                type="text"
+                                id="new-site-tags"
+                                placeholder="Tags (comma separated)"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="settings-inline-actions">
+                            <button type="button" class="btn add-tag-btn" id="add-site-btn">
+                                Add Site
+                            </button>
+                            <p class="settings-helper-text">
+                                Tags can be comma separated and edited after creation.
+                            </p>
+                        </div>
+
+                        <div id="settings-sites-list" class="settings-sites-list" aria-live="polite"></div>
+                    </section>
+                </div>
+
+                <footer class="settings-modal__footer">
+                    <div class="settings-actions">
+                        <button type="button" class="btn" id="settings-save-button">
+                            Save Settings
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="settings-reset-button">
+                            Reset
+                        </button>
+                    </div>
+                </footer>
+            </div>
+        </div>
+
+        <script id="initial-config" type="application/json">{{config_json|safe}}</script>
     </body>
 </html>

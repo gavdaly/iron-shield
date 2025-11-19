@@ -1,125 +1,16 @@
 use crate::config::{Clock, Config};
 use crate::error::Result;
 use crate::uptime::UptimeState;
-use crate::utils;
-use askama_axum::Template;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
-    response::{Html, IntoResponse},
+    response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::Arc;
 use tracing::{error, info};
 use url::Url;
-
-/// Template structure for the settings page
-///
-/// This struct is used by the Askama templating engine to render the settings page.
-/// It contains the current configuration and the current time for display purposes.
-///
-/// # Fields
-///
-/// * `config` - The current application configuration
-/// * `current_time` - The current time as a formatted string
-///
-/// # Examples
-///
-/// ```
-/// use iron_shield::config::Config;
-/// use iron_shield::settings::SettingsTemplate;
-/// use iron_shield::utils;
-///
-/// let config = Config {
-///     site_name: "My Site".to_string(),
-///     clock: iron_shield::config::Clock::None,
-///     sites: vec![],
-/// };
-///
-/// let current_time = utils::get_current_time_string();
-/// // Note: SettingsTemplate is used internally by the generate_settings function
-/// // and is not typically constructed directly in user code
-/// ```
-#[derive(Template)]
-#[template(path = "settings.html")]
-pub struct SettingsTemplate {
-    /// The current application configuration
-    config: Config,
-    /// The current time as a formatted string
-    current_time: String,
-}
-
-/// Generates the settings template with loaded configuration
-///
-/// This function handles the settings page request by retrieving the current configuration
-/// from shared state, formatting the current time, and rendering the settings template.
-/// It's designed to be used as an Axum handler for the settings endpoint.
-///
-/// # Arguments
-///
-/// * `State(state)` - The uptime state containing the configuration
-///
-/// # Returns
-///
-/// An HTML response with the rendered settings template, or an error response if
-/// the configuration could not be accessed or if template rendering failed.
-///
-/// # Errors
-///
-/// This function returns an HTTP 500 error response if:
-/// - The configuration read lock cannot be acquired
-/// - The template cannot be rendered
-///
-/// # Examples
-///
-/// Using this in an Axum router:
-///
-/// ```rust,no_run
-/// use axum::{Router, routing::get};
-/// use iron_shield::settings::generate_settings;
-/// use std::sync::{Arc, RwLock};
-/// use iron_shield::uptime::UptimeState;
-/// use std::collections::HashMap;
-/// use std::collections::VecDeque;
-///
-/// // Assuming you have an uptime_state set up
-/// let app = Router::new()
-///     .route("/settings", get(generate_settings));
-/// ```
-pub async fn generate_settings(State(state): State<Arc<UptimeState>>) -> impl IntoResponse {
-    tracing::debug!("Generating settings template");
-
-    // Get the config from the shared state
-    let config = if let Ok(config_guard) = state.config.read() {
-        config_guard.clone() // Clone the config to avoid holding the lock
-    } else {
-        tracing::error!("Configuration read lock error");
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Configuration read lock error",
-        )
-            .into_response();
-    };
-
-    let current_time = utils::get_current_time_string();
-
-    let template = SettingsTemplate {
-        config,
-        current_time,
-    };
-    match template.render() {
-        Ok(html) => Html(html).into_response(),
-        Err(e) => {
-            tracing::error!("Template rendering error: {e}");
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Template rendering error",
-            )
-                .into_response()
-        }
-    }
-}
 
 /// Structure to receive configuration updates from the API
 ///
@@ -393,13 +284,6 @@ pub async fn save_config(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Clock, Config, Site};
-    use std::collections::HashMap;
-    use std::io::Write;
-    use std::sync::{Arc, RwLock};
-    use tempfile::NamedTempFile;
-    use tokio::sync::broadcast;
-    use tokio_util::sync::CancellationToken;
 
     #[test]
     fn test_config_update_validate_valid_data() {
@@ -494,36 +378,6 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn test_generate_settings_with_valid_state() {
-        // Create a temporary config file
-        let mut temp_file = NamedTempFile::new().unwrap();
-        let config = Config {
-            site_name: "Test Site".to_string(),
-            clock: Clock::Hour24,
-            sites: vec![],
-        };
-        let config_json = json5::to_string(&config).unwrap();
-        temp_file.write_all(config_json.as_bytes()).unwrap();
-
-        let (shutdown_events, _) = broadcast::channel(1);
-        let uptime_state = UptimeState {
-            config: Arc::new(RwLock::new(config)),
-            history: Arc::new(RwLock::new(HashMap::new())),
-            config_file_path: temp_file.path().to_path_buf(),
-            shutdown_events,
-            shutdown_token: CancellationToken::new(),
-        };
-
-        let state = Arc::new(uptime_state);
-        let response = generate_settings(axum::extract::State(state))
-            .await
-            .into_response();
-
-        // Check that the response is OK (200) and contains HTML content
-        assert_eq!(response.status(), StatusCode::OK);
-    }
-
     #[test]
     fn test_site_update_creation() {
         let site_update = SiteUpdate {
@@ -553,27 +407,5 @@ mod tests {
         assert_eq!(config_update.site_name, "Test Site");
         assert_eq!(config_update.clock, "12hour");
         assert!(config_update.sites.is_empty());
-    }
-
-    #[test]
-    fn test_settings_template_creation() {
-        let config = Config {
-            site_name: "Test Site".to_string(),
-            clock: Clock::None,
-            sites: vec![Site {
-                name: "Example".to_string(),
-                url: "https://example.com".to_string(),
-                category: "Web".to_string(),
-                tags: vec!["test".to_string()],
-                uptime_percentage: 0.0,
-            }],
-        };
-
-        let template = SettingsTemplate {
-            config,
-            current_time: "12:00:00 UTC".to_string(),
-        };
-
-        assert_eq!(template.current_time, "12:00:00 UTC");
     }
 }
