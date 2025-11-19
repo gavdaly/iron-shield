@@ -47,12 +47,12 @@ class SiteStatusNotificationController {
         }
 
         const normalizedStatus = update.status.toLowerCase();
-        if (normalizedStatus === "loading") {
-            return;
-        }
-
         const previousStatus = this.latestStatuses.get(update.siteId);
         this.latestStatuses.set(update.siteId, normalizedStatus);
+
+        if (normalizedStatus === "loading" || normalizedStatus === "disabled") {
+            return;
+        }
 
         if (!previousStatus || previousStatus === normalizedStatus) {
             return;

@@ -123,6 +123,19 @@ body.settings-modal-open {
     margin-bottom: 1rem;
 }
 
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+}
+
 .btn {
     padding: 0.65rem 1.25rem;
     border-radius: 999px;

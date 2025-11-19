@@ -50,6 +50,8 @@ async fn test_server_starts_and_serves_index() {
             url: "http://example.com".to_string(),
             category: "Test".to_string(),
             tags: vec!["test".to_string()],
+            monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
             uptime_percentage: 0.0,
         }],
     };

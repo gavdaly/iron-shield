@@ -5,6 +5,8 @@ interface SiteConfig {
     url: string;
     category: string;
     tags: string[];
+    monitor_interval_secs: number;
+    disabled: boolean;
 }
 
 interface ConfigData {
@@ -18,6 +20,8 @@ type NotificationVariant = "success" | "error";
 
 const BORDER_DEFAULT = "var(--color-border)";
 const BORDER_ERROR = "var(--color-error)";
+const DEFAULT_MONITOR_INTERVAL_SECS = 5; // Keep in sync with backend defaults.
+const MIN_MONITOR_INTERVAL_SECS = 5;
 
 let configData: ConfigData | null = null;
 let modalElement: HTMLElement | null = null;
@@ -39,6 +43,7 @@ export function initSettingsPanel(): void {
     if (configData.opentelemetry_endpoint === undefined) {
         configData.opentelemetry_endpoint = null;
     }
+    configData.sites = configData.sites.map((site) => normalizeSiteConfig(site));
     sitesListElement = modalElement.querySelector<HTMLElement>("#settings-sites-list");
     notificationElement = modalElement.querySelector<HTMLElement>("#settings-notification-area");
 
@@ -71,6 +76,21 @@ function parseInitialConfig(): ConfigData | null {
         console.error("Failed to parse initial config payload", error);
         return null;
     }
+}
+
+function normalizeSiteConfig(site: SiteConfig): SiteConfig {
+    const normalizedInterval =
+        typeof site.monitor_interval_secs === "number" &&
+        Number.isFinite(site.monitor_interval_secs) &&
+        site.monitor_interval_secs >= MIN_MONITOR_INTERVAL_SECS
+            ? Math.round(site.monitor_interval_secs)
+            : DEFAULT_MONITOR_INTERVAL_SECS;
+
+    return {
+        ...site,
+        monitor_interval_secs: normalizedInterval,
+        disabled: Boolean(site.disabled),
+    };
 }
 
 function openModal(trigger?: HTMLElement | null): void {
@@ -193,6 +213,8 @@ function handleAddSite(): void {
         url: urlInput.value.trim(),
         category: categoryInput.value.trim(),
         tags: parseTags(tagsInput.value),
+        monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+        disabled: false,
     };
 
     configData.sites.push(newSite);
@@ -264,6 +286,44 @@ function createSiteItem(site: SiteConfig, index: number): HTMLElement {
         "Category (e.g., Work)",
     );
 
+    const intervalInput = createLabeledInput(
+        `site-interval-${index}`,
+        "Check Interval (seconds)",
+        String(site.monitor_interval_secs ?? DEFAULT_MONITOR_INTERVAL_SECS),
+        (value) => {
+            const parsed = Number(value);
+            if (Number.isFinite(parsed)) {
+                site.monitor_interval_secs = Math.round(parsed);
+            }
+        },
+        (input) => validateIntervalInput(input),
+        "number",
+        undefined,
+        {
+            min: `${MIN_MONITOR_INTERVAL_SECS}`,
+            step: "1",
+            inputmode: "numeric",
+        },
+    );
+
+    const disabledGroup = document.createElement("div");
+    disabledGroup.className = "form-group";
+    const disabledLabel = document.createElement("label");
+    disabledLabel.className = "checkbox-label";
+    disabledLabel.htmlFor = `site-disabled-${index}`;
+    disabledLabel.textContent = "Pause monitoring";
+
+    const disabledToggle = document.createElement("input");
+    disabledToggle.type = "checkbox";
+    disabledToggle.id = `site-disabled-${index}`;
+    disabledToggle.checked = Boolean(site.disabled);
+    disabledToggle.addEventListener("change", () => {
+        site.disabled = disabledToggle.checked;
+    });
+
+    disabledLabel.prepend(disabledToggle);
+    disabledGroup.appendChild(disabledLabel);
+
     const tagsGroup = document.createElement("div");
     tagsGroup.className = "form-group";
     const tagsLabel = document.createElement("label");
@@ -308,7 +368,15 @@ function createSiteItem(site: SiteConfig, index: number): HTMLElement {
     deleteButton.addEventListener("click", () => deleteSite(index));
     siteActions.appendChild(deleteButton);
 
-    wrapper.append(nameInput, urlInput, categoryInput, tagsGroup, siteActions);
+    wrapper.append(
+        nameInput,
+        urlInput,
+        categoryInput,
+        intervalInput,
+        disabledGroup,
+        tagsGroup,
+        siteActions,
+    );
     return wrapper;
 }
 
@@ -320,6 +388,7 @@ function createLabeledInput(
     validator?: (input: HTMLInputElement) => boolean,
     type = "text",
     placeholder?: string,
+    attributes?: Record<string, string>,
 ): HTMLElement {
     const group = document.createElement("div");
     group.className = "form-group";
@@ -335,6 +404,11 @@ function createLabeledInput(
     input.autocomplete = "off";
     if (placeholder) {
         input.placeholder = placeholder;
+    }
+    if (attributes) {
+        Object.entries(attributes).forEach(([key, attrValue]) => {
+            input.setAttribute(key, attrValue);
+        });
     }
 
     input.addEventListener("input", () => {
@@ -496,6 +570,9 @@ function validateSites(): string[] {
     configData.sites.forEach((site, index) => {
         const nameInput = document.getElementById(`site-name-${index}`) as HTMLInputElement | null;
         const urlInput = document.getElementById(`site-url-${index}`) as HTMLInputElement | null;
+        const intervalInput = document.getElementById(
+            `site-interval-${index}`,
+        ) as HTMLInputElement | null;
 
         if (!site.name.trim()) {
             errors.push(`Site ${index + 1}: Name is required.`);
@@ -513,6 +590,21 @@ function validateSites(): string[] {
             errors.push(`Site ${index + 1}: Invalid URL format (${site.url}).`);
             if (urlInput) {
                 setInputError(urlInput, "Please enter a valid URL (https://example.com)");
+            }
+        }
+
+        if (
+            !Number.isFinite(site.monitor_interval_secs) ||
+            site.monitor_interval_secs < MIN_MONITOR_INTERVAL_SECS
+        ) {
+            errors.push(
+                `Site ${index + 1}: Interval must be at least ${MIN_MONITOR_INTERVAL_SECS} seconds.`,
+            );
+            if (intervalInput) {
+                setInputError(
+                    intervalInput,
+                    `Enter a value >= ${MIN_MONITOR_INTERVAL_SECS} seconds`,
+                );
             }
         }
     });
@@ -562,6 +654,17 @@ function validateOptionalUrlInput(input: HTMLInputElement): boolean {
 
     if (!isValidUrl(value)) {
         setInputError(input, "Please enter a valid URL (https://example.com)");
+        return false;
+    }
+
+    clearInputError(input);
+    return true;
+}
+
+function validateIntervalInput(input: HTMLInputElement): boolean {
+    const parsed = Number(input.value);
+    if (!Number.isFinite(parsed) || parsed < MIN_MONITOR_INTERVAL_SECS) {
+        setInputError(input, `Enter a value >= ${MIN_MONITOR_INTERVAL_SECS} seconds`);
         return false;
     }
 

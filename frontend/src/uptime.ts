@@ -19,6 +19,9 @@ interface UptimeInfo {
 
 const MAX_HISTORY_BARS = 12;
 const HISTORY_ANIMATION_DURATION = 420;
+const STATUS_LABELS: Record<string, string> = {
+  disabled: "Paused",
+};
 
 /**
  * Establish the SSE connection for uptime updates and update cards on new events.
@@ -260,6 +263,11 @@ function formatStatus(status: string): string {
     return "Unknown";
   }
 
+  const normalized = status.toLowerCase();
+  if (STATUS_LABELS[normalized]) {
+    return STATUS_LABELS[normalized]!;
+  }
+
   return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
 }
 
@@ -270,6 +278,10 @@ function formatPopoverDetail(status: string, responseTime?: number | null): stri
 
   if (status === "loading") {
     return "Checking...";
+  }
+
+  if (status === "disabled") {
+    return "Monitoring paused";
   }
 
   return `Response ${formatResponseTime(responseTime)}`;

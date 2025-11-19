@@ -79,7 +79,12 @@ pub async fn send_uptime_snapshot(
         generated_at: current_timestamp(),
         uptime: snapshot
             .into_iter()
-            .filter(|history| history.status != crate::uptime::UptimeStatus::Loading)
+            .filter(|history| {
+                !matches!(
+                    history.status,
+                    crate::uptime::UptimeStatus::Loading | crate::uptime::UptimeStatus::Disabled
+                )
+            })
             .map(|history| TelemetrySiteStatus {
                 site_id: history.site_id,
                 status: history.status,

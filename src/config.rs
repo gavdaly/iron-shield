@@ -11,6 +11,16 @@ use tracing::{debug, error, info};
 /// This constant defines the default name for the configuration file.
 /// The application expects to find a file with this name in the root directory.
 pub const CONFIG_FILE: &str = "config.json5";
+/// Default number of seconds between uptime checks for a site.
+pub const DEFAULT_MONITOR_INTERVAL_SECS: u64 = 5;
+/// Minimum supported number of seconds between uptime checks.
+pub const MIN_MONITOR_INTERVAL_SECS: u64 = 5;
+
+/// Returns the default interval used to monitor a site.
+#[must_use]
+pub fn default_monitor_interval_secs() -> u64 {
+    DEFAULT_MONITOR_INTERVAL_SECS
+}
 
 /// Application configuration structure
 ///
@@ -41,6 +51,8 @@ pub const CONFIG_FILE: &str = "config.json5";
 ///             url: "https://google.com".to_string(),
 ///             category: "Search".to_string(),
 ///             tags: vec!["important".to_string()],
+///             monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+///             disabled: false,
 ///             uptime_percentage: 0.0, // Not required when initializing manually
 ///         }
 ///     ],
@@ -75,6 +87,8 @@ pub struct Config {
 /// * `url` - The URL of the site to link to
 /// * `category` - An optional category for grouping sites (defaults to empty string)
 /// * `tags` - A vector of tags for categorization and filtering
+/// * `monitor_interval_secs` - How often (in seconds) the site should be checked
+/// * `disabled` - Whether the site should be skipped by the uptime monitor
 /// * `uptime_percentage` - The uptime percentage for display in the UI (not in config file)
 ///
 /// # Examples
@@ -87,6 +101,8 @@ pub struct Config {
 ///     url: "https://google.com".to_string(),
 ///     category: "Search Engines".to_string(),
 ///     tags: vec!["search".to_string(), "important".to_string()],
+///     monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+///     disabled: false,
 ///     uptime_percentage: 99.9,
 /// };
 ///
@@ -104,6 +120,12 @@ pub struct Site {
     pub category: String,
     /// List of tags for categorization and filtering
     pub tags: Vec<String>,
+    /// Number of seconds between uptime checks for this site
+    #[serde(default = "default_monitor_interval_secs")]
+    pub monitor_interval_secs: u64,
+    /// Whether uptime checks are currently disabled for this site
+    #[serde(default)]
+    pub disabled: bool,
     /// The uptime percentage for display in the UI (not in config file)
     /// This field is populated at runtime with data from the uptime monitoring system
     #[serde(default, skip_serializing, skip_deserializing)]
@@ -580,6 +602,8 @@ mod tests {
             url: "https://test.com".to_string(),
             category: "Test Category".to_string(),
             tags: vec!["test".to_string(), "example".to_string()],
+            monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
             uptime_percentage: 99.5,
         };
 
@@ -587,6 +611,8 @@ mod tests {
         assert_eq!(site.url, "https://test.com");
         assert_eq!(site.category, "Test Category");
         assert_eq!(site.tags, vec!["test".to_string(), "example".to_string()]);
+        assert_eq!(site.monitor_interval_secs, DEFAULT_MONITOR_INTERVAL_SECS);
+        assert!(!site.disabled);
         assert!((site.uptime_percentage - 99.5).abs() < f64::EPSILON);
     }
 
@@ -597,10 +623,14 @@ mod tests {
             url: "https://test.com".to_string(),
             category: String::default(), // This will use the serde default
             tags: vec![],
+            monitor_interval_secs: default_monitor_interval_secs(),
+            disabled: Default::default(),
             uptime_percentage: Default::default(), // This uses the serde default (0.0)
         };
 
         assert_eq!(site.category, "");
+        assert_eq!(site.monitor_interval_secs, DEFAULT_MONITOR_INTERVAL_SECS);
+        assert!(!site.disabled);
         assert!((site.uptime_percentage - 0.0).abs() < f64::EPSILON);
     }
 
@@ -621,6 +651,8 @@ mod tests {
             url: "https://example.com".to_string(),
             category: "Test".to_string(),
             tags: vec![],
+            monitor_interval_secs: default_monitor_interval_secs(),
+            disabled: Default::default(),
             uptime_percentage: Default::default(),
         };
 

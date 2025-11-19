@@ -41,6 +41,8 @@ use url::Url;
 ///             url: "https://example.com".to_string(),
 ///             category: "Web".to_string(),
 ///             tags: vec!["important".to_string()],
+///             monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+///             disabled: false,
 ///         }
 ///     ],
 /// };
@@ -77,6 +79,7 @@ impl ConfigUpdate {
     /// - The clock format is invalid (not "24hour", "12hour", or "none").
     /// - A site name or URL is empty.
     /// - A site URL has an invalid format.
+    /// - The monitoring interval is shorter than the supported minimum.
     ///
     /// # Examples
     ///
@@ -94,6 +97,8 @@ impl ConfigUpdate {
     ///             url: "https://example.com".to_string(),
     ///             category: "Web".to_string(),
     ///             tags: vec!["important".to_string()],
+    ///             monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+    ///             disabled: false,
     ///         }
     ///     ],
     /// };
@@ -134,6 +139,14 @@ impl ConfigUpdate {
                     site.url
                 )));
             }
+
+            if site.monitor_interval_secs < crate::config::MIN_MONITOR_INTERVAL_SECS {
+                return Err(crate::error::IronShieldError::from(format!(
+                    "Monitor interval for {} must be at least {} seconds",
+                    site.name,
+                    crate::config::MIN_MONITOR_INTERVAL_SECS
+                )));
+            }
         }
 
         if let Some(endpoint) = &self.opentelemetry_endpoint {
@@ -165,6 +178,8 @@ impl ConfigUpdate {
 /// * `url` - The URL to monitor
 /// * `category` - The category of the site for organizational purposes
 /// * `tags` - A vector of tags to associate with the site
+/// * `monitor_interval_secs` - Desired number of seconds between checks
+/// * `disabled` - Whether this site should be skipped by uptime monitoring
 ///
 /// # Examples
 ///
@@ -176,6 +191,8 @@ impl ConfigUpdate {
 ///     url: "https://example.com".to_string(),
 ///     category: "Web Services".to_string(),
 ///     tags: vec!["important".to_string(), "external".to_string()],
+///     monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+///     disabled: false,
 /// };
 ///
 /// assert_eq!(site_update.name, "Example Site");
@@ -191,6 +208,12 @@ pub struct SiteUpdate {
     pub category: String,
     /// A vector of tags to associate with the site
     pub tags: Vec<String>,
+    /// Desired number of seconds between uptime checks for this site
+    #[serde(default = "crate::config::default_monitor_interval_secs")]
+    pub monitor_interval_secs: u64,
+    /// Whether uptime monitoring is temporarily disabled for this site
+    #[serde(default)]
+    pub disabled: bool,
 }
 
 /// Saves the configuration to the config.json5 file
@@ -265,6 +288,8 @@ pub async fn save_config(
                 url: site_update.url,
                 category: site_update.category,
                 tags: site_update.tags,
+                monitor_interval_secs: site_update.monitor_interval_secs,
+                disabled: site_update.disabled,
                 uptime_percentage: 0.0, // Initialize to 0.0, will be updated by uptime service
             })
             .collect();
@@ -341,6 +366,8 @@ mod tests {
                 url: "https://example.com".to_string(),
                 category: "Web".to_string(),
                 tags: vec!["test".to_string()],
+                monitor_interval_secs: crate::config::DEFAULT_MONITOR_INTERVAL_SECS,
+                disabled: false,
             }],
         };
 
@@ -382,6 +409,8 @@ mod tests {
                 url: "https://example.com".to_string(),
                 category: "Web".to_string(),
                 tags: vec!["test".to_string()],
+                monitor_interval_secs: crate::config::DEFAULT_MONITOR_INTERVAL_SECS,
+                disabled: false,
             }],
         };
 
@@ -404,6 +433,29 @@ mod tests {
                 url: "invalid-url".to_string(),
                 category: "Web".to_string(),
                 tags: vec!["test".to_string()],
+                monitor_interval_secs: crate::config::DEFAULT_MONITOR_INTERVAL_SECS,
+                disabled: false,
+            }],
+        };
+
+        assert!(config_update.validate().is_err());
+    }
+
+    #[test]
+    fn test_config_update_rejects_short_interval() {
+        let invalid_interval = crate::config::MIN_MONITOR_INTERVAL_SECS.saturating_sub(1);
+
+        let config_update = ConfigUpdate {
+            site_name: "Test Site".to_string(),
+            clock: "24hour".to_string(),
+            opentelemetry_endpoint: None,
+            sites: vec![SiteUpdate {
+                name: "Example".to_string(),
+                url: "https://example.com".to_string(),
+                category: "Web".to_string(),
+                tags: vec!["test".to_string()],
+                monitor_interval_secs: invalid_interval,
+                disabled: false,
             }],
         };
 
@@ -448,6 +500,8 @@ mod tests {
             url: "https://test.com".to_string(),
             category: "Test Category".to_string(),
             tags: vec!["tag1".to_string(), "tag2".to_string()],
+            monitor_interval_secs: crate::config::DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
         };
 
         assert_eq!(site_update.name, "Test Site");

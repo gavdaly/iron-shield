@@ -7,19 +7,25 @@
             "name": "Google",
             "url": "https://www.google.com",
             "category": "Search",
-            "tags": ["search", "web"]
+            "tags": ["search", "web"],
+            "monitor_interval_secs": 5,
+            "disabled": false
         },
         {
             "name": "Invalid Site",
             "url": "http://invalid.url.com",
             "category": "Test",
-            "tags": ["test", "down"]
+            "tags": ["test", "down"],
+            "monitor_interval_secs": 15,
+            "disabled": false
         },
         {
             "name": "Example",
             "url": "https://example.com",
             "category": "Examples",
-            "tags": ["example"]
+            "tags": ["example"],
+            "monitor_interval_secs": 30,
+            "disabled": true
         }
     ]
 }

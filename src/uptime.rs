@@ -38,6 +38,7 @@ const MAX_HISTORY_ENTRIES: usize = 20;
 ///     UptimeStatus::Up => println!("Site is up"),
 ///     UptimeStatus::Down => println!("Site is down"),
 ///     UptimeStatus::Loading => println!("Checking site status..."),
+///     UptimeStatus::Disabled => println!("Monitoring paused"),
 /// }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -49,6 +50,8 @@ pub enum UptimeStatus {
     Down,
     /// The site status is currently being checked
     Loading,
+    /// Monitoring for the site is temporarily disabled
+    Disabled,
 }
 
 /// Contains the historical uptime data for a single monitored site
@@ -295,7 +298,8 @@ pub async fn uptime_stream(
     tokio::spawn(async move {
         info!("Starting uptime monitoring service");
 
-        let mut interval = tokio::time::interval(Duration::from_secs(5));
+        let mut ticker = tokio::time::interval(Duration::from_secs(1));
+        let mut last_check_times: HashMap<String, Instant> = HashMap::new();
 
         loop {
             tokio::select! {
@@ -303,12 +307,12 @@ pub async fn uptime_stream(
                     info!("Stopping uptime monitoring service due to shutdown signal");
                     break;
                 }
-                _ = interval.tick() => {}
+                _ = ticker.tick() => {}
             }
-            debug!("Starting new uptime check cycle");
 
-            // Get a copy of the sites to check
-            let sites_to_check = {
+            let now = Instant::now();
+
+            let sites_snapshot = {
                 match config.read() {
                     Ok(guard) => guard.sites.clone(),
                     Err(e) => {
@@ -316,10 +320,12 @@ pub async fn uptime_stream(
                         continue;
                     }
                 }
-            }; // Release the read lock immediately after cloning
+            };
 
-            // Update history to loading state
-            {
+            last_check_times
+                .retain(|site_name, _| sites_snapshot.iter().any(|site| site.name == *site_name));
+
+            let disabled_updates = {
                 let mut history_guard = match history_map.write() {
                     Ok(guard) => guard,
                     Err(e) => {
@@ -327,57 +333,113 @@ pub async fn uptime_stream(
                         continue;
                     }
                 };
-                for site in &sites_to_check {
-                    history_guard
+
+                let mut updates = Vec::new();
+                for site in &sites_snapshot {
+                    let site_history = history_guard
                         .entry(site.name.clone())
                         .or_insert_with(VecDeque::new);
+
+                    if site.disabled {
+                        last_check_times.remove(&site.name);
+                        let last_status = site_history.back().map(|entry| entry.status);
+                        if last_status != Some(UptimeStatus::Disabled) {
+                            apply_final_status(site_history, UptimeStatus::Disabled, None);
+                            let uptime_percentage = calculate_uptime_percentage(site_history);
+                            updates.push(create_uptime_history(
+                                &site.name,
+                                UptimeStatus::Disabled,
+                                site_history,
+                                uptime_percentage,
+                                None,
+                            ));
+                        }
+                    }
+                }
+                updates
+            };
+
+            if !disabled_updates.is_empty() {
+                if let Err(err) = tx.send(disabled_updates) {
+                    info!(
+                        error = %err,
+                        "SSE client disconnected before receiving disabled updates; stopping monitoring loop"
+                    );
+                    break;
                 }
             }
 
-            // Send loading updates
-            {
-                let history_guard = match history_map.read() {
+            let mut sites_due = Vec::new();
+            for site in &sites_snapshot {
+                if site.disabled {
+                    continue;
+                }
+
+                let interval_secs = site
+                    .monitor_interval_secs
+                    .max(crate::config::MIN_MONITOR_INTERVAL_SECS);
+                let required_interval = Duration::from_secs(interval_secs);
+
+                let should_check = match last_check_times.get(&site.name) {
+                    Some(&last_time) => now.duration_since(last_time) >= required_interval,
+                    None => true,
+                };
+
+                if should_check {
+                    last_check_times.insert(site.name.clone(), now);
+                    sites_due.push(site.clone());
+                }
+            }
+
+            if sites_due.is_empty() {
+                continue;
+            }
+
+            let loading_updates = {
+                let mut history_guard = match history_map.write() {
                     Ok(guard) => guard,
                     Err(e) => {
-                        error!("Failed to acquire history read lock: {e}");
+                        error!("Failed to acquire history write lock: {e}");
                         continue;
                     }
                 };
-                let mut uptime_data = Vec::new();
 
-                for site in &sites_to_check {
-                    if let Some(site_history) = history_guard.get(&site.name) {
-                        let uptime_percentage = calculate_uptime_percentage(site_history);
-                        let site_name = site.name.clone();
-
-                        debug!("Calculated uptime: site={site_name}, current_status=Loading, percentage={uptime_percentage:.2}%");
-
-                        let data = create_uptime_history(
-                            &site.name,
-                            UptimeStatus::Loading,
-                            site_history,
-                            uptime_percentage,
-                            None,
-                        );
-
-                        uptime_data.push(data);
+                let mut updates = Vec::new();
+                for site in &sites_due {
+                    let site_history = history_guard
+                        .entry(site.name.clone())
+                        .or_insert_with(VecDeque::new);
+                    site_history.push_back(HistoryEntry {
+                        status: UptimeStatus::Loading,
+                        response_time_ms: None,
+                    });
+                    if site_history.len() > MAX_HISTORY_ENTRIES {
+                        site_history.pop_front();
                     }
+
+                    let uptime_percentage = calculate_uptime_percentage(site_history);
+                    updates.push(create_uptime_history(
+                        &site.name,
+                        UptimeStatus::Loading,
+                        site_history,
+                        uptime_percentage,
+                        None,
+                    ));
                 }
 
-                let update_count = uptime_data.len();
-                if let Err(err) = tx.send(uptime_data) {
-                    info!(
-                        updates = update_count,
-                        error = %err,
-                        "SSE client disconnected before receiving loading updates; stopping monitoring loop"
-                    );
-                    break; // Channel closed, exit the loop
-                }
+                updates
+            };
+
+            if let Err(err) = tx.send(loading_updates) {
+                info!(
+                    error = %err,
+                    "SSE client disconnected before receiving loading updates; stopping monitoring loop"
+                );
+                break;
             }
 
-            // Now check the actual status of each site with concurrency limiting
             let mut tasks = Vec::new();
-            for site in &sites_to_check {
+            for site in sites_due {
                 let client = client.clone();
                 let url = site.url.clone();
                 let tx = tx.clone();
@@ -386,7 +448,7 @@ pub async fn uptime_stream(
                 let semaphore = semaphore.clone();
 
                 let task = tokio::spawn(async move {
-                    let _permit = semaphore.acquire().await.unwrap(); // Wait for permit
+                    let _permit = semaphore.acquire().await.unwrap();
                     debug!("Starting uptime check for site: {site_name}");
 
                     let SiteCheckResult {
@@ -402,7 +464,7 @@ pub async fn uptime_stream(
                             Ok(guard) => guard,
                             Err(e) => {
                                 error!("Failed to acquire history write lock: {e}");
-                                return; // Exit if we can't update history
+                                return;
                             }
                         };
                         let site_history = history_guard
@@ -411,13 +473,12 @@ pub async fn uptime_stream(
                         apply_final_status(site_history, status, response_time_ms);
                     }
 
-                    // Send the final status update
                     {
                         let history_guard = match history_map.read() {
                             Ok(guard) => guard,
                             Err(e) => {
                                 error!("Failed to acquire history read lock: {e}");
-                                return; // Exit if we can't read history
+                                return;
                             }
                         };
                         if let Some(site_history) = history_guard.get(&site_name) {
@@ -451,7 +512,6 @@ pub async fn uptime_stream(
                 tasks.push(task);
             }
 
-            // Wait for all tasks to complete before next interval
             for task in tasks {
                 let _ = task.await;
             }
@@ -504,8 +564,8 @@ pub async fn uptime_stream(
 /// Helper function to calculate the uptime percentage based on site history
 ///
 /// This function calculates the percentage of time a site has been up based on its history,
-/// excluding `Loading` statuses from the calculation to avoid artificially reducing the
-/// percentage during initialization or active checking periods.
+/// excluding `Loading` or `Disabled` statuses from the calculation to avoid artificially
+/// reducing the percentage during initialization or when monitoring is paused.
 ///
 /// # Arguments
 ///
@@ -522,23 +582,30 @@ pub async fn uptime_stream(
 /// an indicator of site availability.
 #[must_use]
 pub fn calculate_uptime_percentage(site_history: &VecDeque<HistoryEntry>) -> f64 {
-    let up_count = site_history
-        .iter()
-        .filter(|entry| entry.status == UptimeStatus::Up)
-        .count();
-    let count_excluding_loading = site_history
-        .iter()
-        .filter(|entry| entry.status != UptimeStatus::Loading)
-        .count();
+    let mut up_count: u32 = 0;
+    let mut completed_checks: u32 = 0;
 
-    if count_excluding_loading == 0 {
+    for entry in site_history {
+        match entry.status {
+            UptimeStatus::Up => {
+                up_count += 1;
+                completed_checks += 1;
+            }
+            UptimeStatus::Down => {
+                completed_checks += 1;
+            }
+            UptimeStatus::Loading | UptimeStatus::Disabled => {}
+        }
+    }
+
+    if completed_checks == 0 {
         0.0
     } else {
         // This cast is necessary for percentage calculation and precision loss is acceptable
         // for our use case (uptime monitoring doesn't require exact precision)
         #[allow(clippy::cast_precision_loss)]
         {
-            (up_count as f64) / (count_excluding_loading as f64) * 100.0
+            f64::from(up_count) / f64::from(completed_checks) * 100.0
         }
     }
 }
@@ -685,10 +752,12 @@ mod tests {
         assert_eq!(format!("{:?}", UptimeStatus::Up), "Up");
         assert_eq!(format!("{:?}", UptimeStatus::Down), "Down");
         assert_eq!(format!("{:?}", UptimeStatus::Loading), "Loading");
+        assert_eq!(format!("{:?}", UptimeStatus::Disabled), "Disabled");
 
         // Test PartialEq implementation
         assert_eq!(UptimeStatus::Up, UptimeStatus::Up);
         assert_ne!(UptimeStatus::Up, UptimeStatus::Down);
+        assert_ne!(UptimeStatus::Disabled, UptimeStatus::Up);
     }
 
     #[test]
@@ -740,6 +809,14 @@ mod tests {
         // 2 Up out of 3 non-Loading statuses = 66.67%
         let percentage = calculate_uptime_percentage(&history);
         assert!((percentage - 66.67).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_calculate_uptime_percentage_ignores_disabled() {
+        let history = make_history(&[UptimeStatus::Up, UptimeStatus::Disabled, UptimeStatus::Down]);
+
+        let percentage = calculate_uptime_percentage(&history);
+        assert!((percentage - 50.0).abs() < f64::EPSILON);
     }
 
     #[test]

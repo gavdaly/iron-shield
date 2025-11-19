@@ -38,6 +38,8 @@ use tracing::error;
 ///         url: "https://example.com".to_string(),
 ///         category: "Web".to_string(),
 ///         tags: vec!["important".to_string()],
+///         monitor_interval_secs: iron_shield::config::DEFAULT_MONITOR_INTERVAL_SECS,
+///         disabled: false,
 ///         uptime_percentage: 99.5,
 ///     }],
 /// };
@@ -121,6 +123,8 @@ pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoR
                         url: site.url.clone(),
                         category: site.category.clone(),
                         tags: site.tags.clone(),
+                        monitor_interval_secs: site.monitor_interval_secs,
+                        disabled: site.disabled,
                     })
                     .collect(),
             };
@@ -199,6 +203,8 @@ mod tests {
                 url: "https://docs.example.com".to_string(),
                 category: "Reference".to_string(),
                 tags: vec!["docs".to_string()],
+                monitor_interval_secs: crate::config::DEFAULT_MONITOR_INTERVAL_SECS,
+                disabled: false,
                 uptime_percentage: 99.9,
             }],
         }

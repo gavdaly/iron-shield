@@ -99,6 +99,12 @@
     color: var(--color-text-secondary);
 }
 
+.uptime.disabled {
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+    border: 1px dashed var(--color-border);
+}
+
 .uptime .status-text {
     font-weight: var(--font-weight-semibold);
     font-size: var(--text-2xl);
@@ -155,6 +161,11 @@
 
 .history-bar.loading {
     background: var(--color-loading-history-bar);
+    opacity: 1;
+}
+
+.history-bar.disabled {
+    background: var(--color-border);
     opacity: 1;
 }
 

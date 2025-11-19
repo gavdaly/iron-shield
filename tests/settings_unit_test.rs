@@ -4,7 +4,7 @@ use axum::{
     response::IntoResponse,
 };
 use http_body_util::BodyExt; // For .collect()
-use iron_shield::config::{Clock, Config, Site};
+use iron_shield::config::{Clock, Config, Site, DEFAULT_MONITOR_INTERVAL_SECS};
 use iron_shield::error::IronShieldError;
 use iron_shield::settings::{ConfigUpdate, SiteUpdate};
 use iron_shield::uptime::UptimeState;
@@ -28,12 +28,16 @@ async fn test_config_update_validate_valid() {
                 url: "https://www.google.com".to_string(),
                 category: "Search".to_string(),
                 tags: vec!["web".to_string()],
+                monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+                disabled: false,
             },
             SiteUpdate {
                 name: "Rust-lang".to_string(),
                 url: "https://www.rust-lang.org".to_string(),
                 category: "Programming".to_string(),
                 tags: vec!["dev".to_string(), "oss".to_string()],
+                monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+                disabled: false,
             },
         ],
     };
@@ -84,6 +88,8 @@ async fn test_config_update_validate_empty_site_entry_name() {
             url: "https://www.google.com".to_string(),
             category: "Search".to_string(),
             tags: vec![],
+            monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
         }],
     };
 
@@ -105,6 +111,8 @@ async fn test_config_update_validate_empty_site_entry_url() {
             url: String::new(),
             category: "Search".to_string(),
             tags: vec![],
+            monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
         }],
     };
 
@@ -126,6 +134,8 @@ async fn test_config_update_validate_invalid_site_entry_url() {
             url: "invalid-url".to_string(),
             category: "Search".to_string(),
             tags: vec![],
+            monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
         }],
     };
 
@@ -175,6 +185,8 @@ async fn test_save_config_success() {
             url: "https://new.example.com".to_string(),
             category: "Test".to_string(),
             tags: vec!["new".to_string()],
+            monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
         }],
     };
 
@@ -204,6 +216,8 @@ async fn test_save_config_success() {
             url: "https://new.example.com".to_string(),
             category: "Test".to_string(),
             tags: vec!["new".to_string()],
+            monitor_interval_secs: DEFAULT_MONITOR_INTERVAL_SECS,
+            disabled: false,
             uptime_percentage: 0.0,
         }],
     };
