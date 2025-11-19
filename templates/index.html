@@ -39,34 +39,85 @@
         {% when Clock::None %} {% endmatch %}
 
         <nav role="navigation" aria-label="Site shortcuts">
-            <section id="site-filters" aria-label="Search and filter sites">
-                <div class="filter-field">
-                    <label class="filter-label" for="site-search">Search sites</label>
-                    <div class="filter-input-wrapper">
-                        <input
-                            id="site-search"
-                            name="site-search"
-                            type="search"
-                            placeholder="Search bookmarks..."
-                            autocomplete="off"
-                            spellcheck="false"
-                            enterkeyhint="search"
-                            aria-label="Search sites"
+            <div class="site-toolbar">
+                <button
+                    id="site-filters-toggle"
+                    class="site-filter-button"
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded="false"
+                    aria-controls="site-filters-panel"
+                    aria-label="Open filters"
+                >
+                    <svg
+                        aria-hidden="true"
+                        focusable="false"
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        class="site-filter-icon"
+                    >
+                        <path
+                            d="M4 6h16M7 12h10m-7 6h4"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
                         />
-                        <span class="filter-shortcut-hint">Press / to focus</span>
-                    </div>
+                    </svg>
+                    <span class="sr-only">Open filters</span>
+                </button>
+            </div>
+            <div id="site-filters-overlay" class="site-filters-overlay" hidden>
+                <div
+                    id="site-filters-panel"
+                    class="site-filters-panel"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="site-filters-title"
+                >
+                    <section id="site-filters" aria-label="Search and filter sites">
+                        <header class="site-filters-header">
+                            <h2 id="site-filters-title">Filter sites</h2>
+                            <button
+                                id="site-filters-close"
+                                type="button"
+                                class="site-filter-close-button"
+                                aria-label="Close filters"
+                            >
+                                ×
+                            </button>
+                        </header>
+                        <div class="filter-field">
+                            <label class="filter-label" for="site-search">Search sites</label>
+                            <div class="filter-input-wrapper">
+                                <input
+                                    id="site-search"
+                                    name="site-search"
+                                    type="search"
+                                    placeholder="Search bookmarks..."
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                    enterkeyhint="search"
+                                    aria-label="Search sites"
+                                />
+                                <span class="filter-shortcut-hint">Press / to focus</span>
+                            </div>
+                        </div>
+                        <div class="filter-field" id="tag-filter-field">
+                            <div class="filter-label">Filter by tag</div>
+                            <div
+                                id="tag-filter-chips"
+                                role="listbox"
+                                aria-multiselectable="true"
+                                aria-label="Tag filters"
+                                tabindex="0"
+                            ></div>
+                        </div>
+                    </section>
                 </div>
-                <div class="filter-field" id="tag-filter-field">
-                    <div class="filter-label">Filter by tag</div>
-                    <div
-                        id="tag-filter-chips"
-                        role="listbox"
-                        aria-multiselectable="true"
-                        aria-label="Tag filters"
-                        tabindex="0"
-                    ></div>
-                </div>
-            </section>
+            </div>
             <p id="site-filter-empty" class="filter-empty-state" role="status" hidden>
                 No sites match your search or filters.
             </p>

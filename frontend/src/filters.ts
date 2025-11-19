@@ -23,6 +23,7 @@ export function initSiteFilters(): void {
   const tagContainer = document.getElementById("tag-filter-chips");
   const tagField = document.getElementById("tag-filter-field");
   const emptyState = document.getElementById("site-filter-empty");
+  setupFilterModal(searchInput);
 
   if (!siteList || !searchInput || !tagContainer || !emptyState) {
     return;
@@ -53,6 +54,70 @@ export function initSiteFilters(): void {
 
   wireSearchShortcut(searchInput);
   applyFilters(siteCards, searchInput, activeTags, emptyState);
+}
+
+function setupFilterModal(searchInput: HTMLInputElement | null): void {
+  const overlay = document.getElementById("site-filters-overlay");
+  const openButton = document.getElementById("site-filters-toggle") as HTMLButtonElement | null;
+  const closeButton = document.getElementById("site-filters-close") as HTMLButtonElement | null;
+  const panel = overlay?.querySelector<HTMLElement>("#site-filters-panel") ?? null;
+
+  if (!overlay || !panel || !openButton) {
+    return;
+  }
+
+  let onDocumentKeydown: ((event: KeyboardEvent) => void) | null = null;
+
+  const openModal = (): void => {
+    if (!overlay.hidden) {
+      return;
+    }
+
+    overlay.hidden = false;
+    openButton.setAttribute("aria-expanded", "true");
+    requestAnimationFrame(() => {
+      searchInput?.focus();
+      searchInput?.select();
+    });
+
+    onDocumentKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeModal();
+      }
+    };
+
+    document.addEventListener("keydown", onDocumentKeydown);
+  };
+
+  const closeModal = (): void => {
+    if (overlay.hidden) {
+      return;
+    }
+
+    overlay.hidden = true;
+    openButton.setAttribute("aria-expanded", "false");
+    openButton.focus();
+
+    if (onDocumentKeydown) {
+      document.removeEventListener("keydown", onDocumentKeydown);
+      onDocumentKeydown = null;
+    }
+  };
+
+  openButton.addEventListener("click", () => {
+    if (overlay.hidden) {
+      openModal();
+    } else {
+      closeModal();
+    }
+  });
+  closeButton?.addEventListener("click", closeModal);
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) {
+      closeModal();
+    }
+  });
 }
 
 function collectTagMetadata(cards: SiteCard[]): TagMeta[] {
