@@ -328,8 +328,13 @@ pub async fn uptime_stream(
                     }
                 }
 
-                if tx.send(uptime_data).is_err() {
-                    error!("Failed to send loading updates to SSE stream");
+                let update_count = uptime_data.len();
+                if let Err(err) = tx.send(uptime_data) {
+                    info!(
+                        updates = update_count,
+                        error = %err,
+                        "SSE client disconnected before receiving loading updates; stopping monitoring loop"
+                    );
                     break; // Channel closed, exit the loop
                 }
             }
@@ -396,8 +401,12 @@ pub async fn uptime_stream(
                                 latest_response_time,
                             );
 
-                            if tx.send(vec![data]).is_err() {
-                                error!("Failed to send uptime update for site: {site_name}");
+                            if let Err(err) = tx.send(vec![data]) {
+                                info!(
+                                    site = %site_name,
+                                    error = %err,
+                                    "SSE client disconnected before receiving uptime update; skipping send"
+                                );
                             }
                         }
                     }
@@ -412,6 +421,8 @@ pub async fn uptime_stream(
             }
         }
     });
+
+    info!("Client connected to uptime SSE stream");
 
     // Convert the receiving end of the channel into a stream
     let uptime_stream = UnboundedReceiverStream::new(rx).map(|uptime_data| {
