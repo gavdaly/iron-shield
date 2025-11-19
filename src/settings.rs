@@ -9,7 +9,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 use url::Url;
 
 /// Structure to receive configuration updates from the API
@@ -23,6 +23,7 @@ use url::Url;
 /// * `site_name` - The name of the site to display in the UI
 /// * `clock` - The clock format as a string ("24hour", "12hour", or "none")
 /// * `sites` - A vector of site updates to monitor
+/// * `opentelemetry_endpoint` - Optional HTTP endpoint used to forward uptime snapshots
 ///
 /// # Examples
 ///
@@ -33,6 +34,7 @@ use url::Url;
 /// let config_update = ConfigUpdate {
 ///     site_name: "My Site".to_string(),
 ///     clock: "24hour".to_string(),
+///     opentelemetry_endpoint: None,
 ///     sites: vec![
 ///         SiteUpdate {
 ///             name: "Example".to_string(),
@@ -51,6 +53,9 @@ pub struct ConfigUpdate {
     pub site_name: String,
     /// The clock format as a string ("24hour", "12hour", or "none")
     pub clock: String,
+    /// Optional OpenTelemetry endpoint to forward uptime snapshots to
+    #[serde(default)]
+    pub opentelemetry_endpoint: Option<String>,
     /// A vector of site updates to monitor
     pub sites: Vec<SiteUpdate>,
 }
@@ -82,6 +87,7 @@ impl ConfigUpdate {
     /// let mut config_update = ConfigUpdate {
     ///     site_name: "My Site".to_string(),
     ///     clock: "24hour".to_string(),
+    ///     opentelemetry_endpoint: None,
     ///     sites: vec![
     ///         SiteUpdate {
     ///             name: "Example".to_string(),
@@ -126,6 +132,20 @@ impl ConfigUpdate {
                 return Err(crate::error::IronShieldError::from(format!(
                     "Invalid URL format: {}",
                     site.url
+                )));
+            }
+        }
+
+        if let Some(endpoint) = &self.opentelemetry_endpoint {
+            if endpoint.trim().is_empty() {
+                return Err(crate::error::IronShieldError::from(
+                    "OpenTelemetry endpoint cannot be empty",
+                ));
+            }
+
+            if let Err(err) = Url::parse(endpoint) {
+                return Err(crate::error::IronShieldError::from(format!(
+                    "Invalid OpenTelemetry endpoint: {err}",
                 )));
             }
         }
@@ -219,7 +239,7 @@ pub async fn save_config(
 ) -> impl IntoResponse {
     tracing::info!("Saving configuration");
 
-    let result = (|| -> Result<()> {
+    let result = (|| -> Result<(Option<String>, String)> {
         // Validate the configuration update
         payload.validate()?;
 
@@ -230,6 +250,11 @@ pub async fn save_config(
             "none" => Clock::None,
             _ => return Err(crate::error::IronShieldError::from("Invalid clock format")),
         };
+
+        let telemetry_endpoint = payload
+            .opentelemetry_endpoint
+            .as_ref()
+            .map(|endpoint| endpoint.trim().to_string());
 
         // Convert SiteUpdate to Site
         let sites: Vec<crate::config::Site> = payload
@@ -248,8 +273,11 @@ pub async fn save_config(
         let new_config = Config {
             site_name: payload.site_name,
             clock,
+            opentelemetry_endpoint: telemetry_endpoint.clone(),
             sites,
         };
+
+        let telemetry_dashboard = new_config.site_name.clone();
 
         // Write the updated configuration to the file
         let config_json = json5::to_string(&new_config).map_err(|e| {
@@ -269,11 +297,28 @@ pub async fn save_config(
             info!("Configuration updated successfully in memory");
         }
 
-        Ok(())
+        Ok((telemetry_endpoint, telemetry_dashboard))
     })();
 
     match result {
-        Ok(()) => (StatusCode::OK, "Configuration saved successfully").into_response(),
+        Ok((telemetry_endpoint, dashboard_name)) => {
+            if let Some(endpoint) = telemetry_endpoint {
+                let state_clone = Arc::clone(&state);
+                tokio::spawn(async move {
+                    if let Err(err) = crate::telemetry::send_uptime_snapshot(
+                        state_clone,
+                        dashboard_name,
+                        endpoint,
+                    )
+                    .await
+                    {
+                        warn!("Failed to send uptime snapshot: {err}");
+                    }
+                });
+            }
+
+            (StatusCode::OK, "Configuration saved successfully").into_response()
+        }
         Err(e) => {
             error!("Error saving configuration: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
@@ -290,6 +335,7 @@ mod tests {
         let config_update = ConfigUpdate {
             site_name: "Test Site".to_string(),
             clock: "24hour".to_string(),
+            opentelemetry_endpoint: None,
             sites: vec![SiteUpdate {
                 name: "Example".to_string(),
                 url: "https://example.com".to_string(),
@@ -306,6 +352,7 @@ mod tests {
         let config_update = ConfigUpdate {
             site_name: String::new(),
             clock: "24hour".to_string(),
+            opentelemetry_endpoint: None,
             sites: vec![],
         };
 
@@ -317,6 +364,7 @@ mod tests {
         let config_update = ConfigUpdate {
             site_name: "Test Site".to_string(),
             clock: "invalid".to_string(),
+            opentelemetry_endpoint: None,
             sites: vec![],
         };
 
@@ -328,6 +376,7 @@ mod tests {
         let mut config_update = ConfigUpdate {
             site_name: "Test Site".to_string(),
             clock: "24hour".to_string(),
+            opentelemetry_endpoint: None,
             sites: vec![SiteUpdate {
                 name: String::new(),
                 url: "https://example.com".to_string(),
@@ -349,6 +398,7 @@ mod tests {
         let config_update = ConfigUpdate {
             site_name: "Test Site".to_string(),
             clock: "24hour".to_string(),
+            opentelemetry_endpoint: None,
             sites: vec![SiteUpdate {
                 name: "Example".to_string(),
                 url: "invalid-url".to_string(),
@@ -368,6 +418,7 @@ mod tests {
             let config_update = ConfigUpdate {
                 site_name: "Test Site".to_string(),
                 clock: clock_format.to_string(),
+                opentelemetry_endpoint: None,
                 sites: vec![],
             };
 
@@ -376,6 +427,18 @@ mod tests {
                 "Clock format '{clock_format}' should be valid"
             );
         }
+    }
+
+    #[test]
+    fn test_config_update_rejects_invalid_telemetry_endpoint() {
+        let config_update = ConfigUpdate {
+            site_name: "Test Site".to_string(),
+            clock: "24hour".to_string(),
+            opentelemetry_endpoint: Some("not a url".to_string()),
+            sites: vec![],
+        };
+
+        assert!(config_update.validate().is_err());
     }
 
     #[test]
@@ -401,6 +464,7 @@ mod tests {
         let config_update = ConfigUpdate {
             site_name: "Test Site".to_string(),
             clock: "12hour".to_string(),
+            opentelemetry_endpoint: None,
             sites: vec![],
         };
 

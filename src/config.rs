@@ -22,6 +22,7 @@ pub const CONFIG_FILE: &str = "config.json5";
 ///
 /// * `site_name` - The name of the site displayed in the page title
 /// * `clock` - The format in which to display the clock
+/// * `opentelemetry_endpoint` - Optional HTTP endpoint to send uptime telemetry to
 /// * `sites` - A vector of bookmarked sites to display on the dashboard
 ///
 /// # Examples
@@ -33,6 +34,7 @@ pub const CONFIG_FILE: &str = "config.json5";
 /// let config = Config {
 ///     site_name: "My Dashboard".to_string(),
 ///     clock: Clock::Hour24,
+///     opentelemetry_endpoint: None,
 ///     sites: vec![
 ///         Site {
 ///             name: "Google".to_string(),
@@ -54,6 +56,9 @@ pub struct Config {
     /// Clock format to use (24-hour, 12-hour, or no clock)
     #[serde(default)]
     pub clock: Clock,
+    /// Optional endpoint to forward uptime telemetry snapshots to
+    #[serde(default)]
+    pub opentelemetry_endpoint: Option<String>,
     /// List of bookmarked sites to display
     #[serde(default)]
     pub sites: Vec<Site>,
@@ -116,6 +121,7 @@ impl Default for Config {
         Config {
             site_name: default_site_name(),
             clock: Clock::None,
+            opentelemetry_endpoint: None,
             sites: Vec::new(),
         }
     }

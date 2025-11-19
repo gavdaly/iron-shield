@@ -21,6 +21,7 @@ async fn test_config_update_validate_valid() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![
             SiteUpdate {
                 name: "Google".to_string(),
@@ -45,6 +46,7 @@ async fn test_config_update_validate_empty_site_name() {
     let config_update = ConfigUpdate {
         site_name: String::new(),
         clock: "24hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![],
     };
 
@@ -60,6 +62,7 @@ async fn test_config_update_validate_invalid_clock_format() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "invalid".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![],
     };
 
@@ -75,6 +78,7 @@ async fn test_config_update_validate_empty_site_entry_name() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![SiteUpdate {
             name: String::new(),
             url: "https://www.google.com".to_string(),
@@ -95,6 +99,7 @@ async fn test_config_update_validate_empty_site_entry_url() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![SiteUpdate {
             name: "Google".to_string(),
             url: String::new(),
@@ -115,6 +120,7 @@ async fn test_config_update_validate_invalid_site_entry_url() {
     let config_update = ConfigUpdate {
         site_name: "Test Site".to_string(),
         clock: "24hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![SiteUpdate {
             name: "Google".to_string(),
             url: "invalid-url".to_string(),
@@ -135,6 +141,7 @@ fn create_test_uptime_state(config_file_path: PathBuf) -> Arc<UptimeState> {
     let config = Config {
         site_name: "Initial Site".to_string(),
         clock: Clock::Hour24,
+        opentelemetry_endpoint: None,
         sites: vec![],
     };
     let (shutdown_events, _) = broadcast::channel(1);
@@ -162,6 +169,7 @@ async fn test_save_config_success() {
     let payload = ConfigUpdate {
         site_name: "Updated Site Name".to_string(),
         clock: "12hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![SiteUpdate {
             name: "New Site".to_string(),
             url: "https://new.example.com".to_string(),
@@ -190,6 +198,7 @@ async fn test_save_config_success() {
     let expected_config = Config {
         site_name: "Updated Site Name".to_string(),
         clock: Clock::Hour12,
+        opentelemetry_endpoint: None,
         sites: vec![Site {
             name: "New Site".to_string(),
             url: "https://new.example.com".to_string(),
@@ -226,6 +235,7 @@ async fn test_save_config_invalid_payload() {
     let payload = ConfigUpdate {
         site_name: String::new(), // Invalid site name
         clock: "24hour".to_string(),
+        opentelemetry_endpoint: None,
         sites: vec![],
     };
 

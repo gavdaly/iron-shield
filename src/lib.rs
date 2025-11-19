@@ -103,6 +103,12 @@ pub mod uptime;
 /// dynamic updates to site configurations and settings.
 pub mod settings;
 
+/// Telemetry helpers
+///
+/// Provides utilities for shipping uptime snapshots to external collectors so the
+/// dashboard can maintain a long-term history outside of the local runtime.
+pub mod telemetry;
+
 /// Utility functions module
 ///
 /// Contains common utility functions used throughout the application, such as time

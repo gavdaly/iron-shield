@@ -8,6 +8,7 @@ interface SiteConfig {
 interface ConfigData {
     site_name: string;
     clock: string;
+    opentelemetry_endpoint: string | null;
     sites: SiteConfig[];
 }
 
@@ -32,6 +33,9 @@ export function initSettingsPanel(): void {
     }
 
     configData = parsedConfig;
+    if (configData.opentelemetry_endpoint === undefined) {
+        configData.opentelemetry_endpoint = null;
+    }
     sitesListElement = modalElement.querySelector<HTMLElement>("#settings-sites-list");
     notificationElement = modalElement.querySelector<HTMLElement>("#settings-notification-area");
 
@@ -99,6 +103,9 @@ function applyInitialValues(): void {
 
     const siteNameInput = document.getElementById("settings-site-name") as HTMLInputElement | null;
     const clockSelect = document.getElementById("settings-clock-format") as HTMLSelectElement | null;
+    const telemetryInput = document.getElementById(
+        "settings-telemetry-endpoint",
+    ) as HTMLInputElement | null;
 
     if (siteNameInput) {
         siteNameInput.value = configData.site_name;
@@ -113,6 +120,16 @@ function applyInitialValues(): void {
         clockSelect.addEventListener("change", () => {
             configData!.clock = clockSelect.value;
         });
+    }
+
+    if (telemetryInput) {
+        telemetryInput.value = configData.opentelemetry_endpoint ?? "";
+        telemetryInput.addEventListener("input", () => {
+            const trimmed = telemetryInput.value.trim();
+            configData!.opentelemetry_endpoint = trimmed.length > 0 ? trimmed : null;
+            validateOptionalUrlInput(telemetryInput);
+        });
+        telemetryInput.addEventListener("blur", () => validateOptionalUrlInput(telemetryInput));
     }
 }
 
@@ -383,6 +400,9 @@ function saveSettings(): void {
 
     const siteNameInput = document.getElementById("settings-site-name") as HTMLInputElement | null;
     const clockSelect = document.getElementById("settings-clock-format") as HTMLSelectElement | null;
+    const telemetryInput = document.getElementById(
+        "settings-telemetry-endpoint",
+    ) as HTMLInputElement | null;
 
     if (siteNameInput) {
         configData.site_name = siteNameInput.value.trim();
@@ -396,7 +416,15 @@ function saveSettings(): void {
         configData.clock = clockSelect.value;
     }
 
+    if (telemetryInput) {
+        const trimmed = telemetryInput.value.trim();
+        configData.opentelemetry_endpoint = trimmed.length > 0 ? trimmed : null;
+    }
+
     const validationErrors = validateSites();
+    if (telemetryInput && !validateOptionalUrlInput(telemetryInput)) {
+        validationErrors.push("OpenTelemetry endpoint must be a valid URL.");
+    }
     if (validationErrors.length > 0) {
         showNotification(`Validation errors:\n${validationErrors.join("\n")}`, "error");
         return;
@@ -496,6 +524,22 @@ function validateUrlInput(input: HTMLInputElement): boolean {
     if (value.length === 0) {
         setInputError(input, "URL cannot be empty");
         return false;
+    }
+
+    if (!isValidUrl(value)) {
+        setInputError(input, "Please enter a valid URL (https://example.com)");
+        return false;
+    }
+
+    clearInputError(input);
+    return true;
+}
+
+function validateOptionalUrlInput(input: HTMLInputElement): boolean {
+    const value = input.value.trim();
+    if (value.length === 0) {
+        clearInputError(input);
+        return true;
     }
 
     if (!isValidUrl(value)) {

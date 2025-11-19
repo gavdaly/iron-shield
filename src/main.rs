@@ -35,6 +35,7 @@ mod error;
 mod index;
 mod server;
 mod settings;
+mod telemetry;
 mod uptime;
 mod utils;
 

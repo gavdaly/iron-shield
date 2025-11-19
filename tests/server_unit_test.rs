@@ -44,6 +44,7 @@ async fn test_server_starts_and_serves_index() {
     let test_config = Config {
         site_name: "Test Site".to_string(),
         clock: iron_shield::config::Clock::None,
+        opentelemetry_endpoint: None,
         sites: vec![Site {
             name: "example.com".to_string(),
             url: "http://example.com".to_string(),

@@ -1,6 +1,7 @@
 {
     "site_name": "My Iron Shield Dashboard",
     "clock": "Hour24",
+    "opentelemetry_endpoint": null,
     "sites": [
         {
             "name": "Google",

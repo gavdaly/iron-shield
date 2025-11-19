@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::telemetry;
 use axum::{extract::State, response::Sse};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -11,7 +12,7 @@ use tokio_stream::{
     StreamExt,
 };
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 /// Maximum number of historical uptime entries retained per site.
 const MAX_HISTORY_ENTRIES: usize = 20;
@@ -150,6 +151,7 @@ struct SiteCheckResult {
 /// let config = Arc::new(RwLock::new(Config {
 ///     site_name: "Test Site".to_string(),
 ///     clock: iron_shield::config::Clock::None,
+///     opentelemetry_endpoint: None,
 ///     sites: vec![],
 /// }));
 /// let history = Arc::new(RwLock::new(HashMap::new()));
@@ -174,6 +176,39 @@ pub struct UptimeState {
     pub shutdown_events: tokio::sync::broadcast::Sender<String>,
     /// Cancellation token to gracefully stop background uptime tasks
     pub shutdown_token: CancellationToken,
+}
+
+/// Snapshot the current uptime histories for all tracked sites.
+///
+/// This helper clones the per-site history map so other tasks are not blocked while
+/// telemetry payloads are being built.
+pub fn snapshot_current_histories(state: &UptimeState) -> Vec<UptimeHistory> {
+    let history_guard = match state.history.read() {
+        Ok(guard) => guard,
+        Err(err) => {
+            error!("Failed to acquire history read lock for snapshot: {err}");
+            return Vec::new();
+        }
+    };
+
+    history_guard
+        .iter()
+        .map(|(site_name, history)| {
+            let uptime_percentage = calculate_uptime_percentage(history);
+            let (status, response_time_ms) = history
+                .back()
+                .map_or((UptimeStatus::Loading, None), |entry| {
+                    (entry.status, entry.response_time_ms)
+                });
+            create_uptime_history(
+                site_name,
+                status,
+                history,
+                uptime_percentage,
+                response_time_ms,
+            )
+        })
+        .collect()
 }
 
 /// Handles the uptime monitoring stream endpoint using Server-Sent Events (SSE)
@@ -256,6 +291,7 @@ pub async fn uptime_stream(
 
     // Spawn a task to periodically check sites and send updates
     let shutdown_token_for_task = shutdown_token.clone();
+    let telemetry_state = Arc::clone(&state);
     tokio::spawn(async move {
         info!("Starting uptime monitoring service");
 
@@ -419,6 +455,21 @@ pub async fn uptime_stream(
             for task in tasks {
                 let _ = task.await;
             }
+
+            if let Some((endpoint, dashboard_name)) = telemetry_destination(&telemetry_state) {
+                let state_for_snapshot = Arc::clone(&telemetry_state);
+                tokio::spawn(async move {
+                    if let Err(err) = telemetry::send_uptime_snapshot(
+                        state_for_snapshot,
+                        dashboard_name,
+                        endpoint,
+                    )
+                    .await
+                    {
+                        warn!("Failed to send telemetry snapshot after uptime cycle: {err}");
+                    }
+                });
+            }
         }
     });
 
@@ -448,6 +499,15 @@ pub async fn uptime_stream(
     let stream = uptime_stream.merge(maintenance_stream);
 
     Sse::new(stream)
+}
+
+fn telemetry_destination(state: &Arc<UptimeState>) -> Option<(String, String)> {
+    let config_guard = state.config.read().ok()?;
+    let endpoint = config_guard.opentelemetry_endpoint.clone()?;
+    if endpoint.trim().is_empty() {
+        return None;
+    }
+    Some((endpoint, config_guard.site_name.clone()))
 }
 
 /// Helper function to calculate the uptime percentage based on site history
@@ -508,7 +568,7 @@ pub fn calculate_uptime_percentage(site_history: &VecDeque<HistoryEntry>) -> f64
 ///
 /// A new `UptimeHistory` instance with the provided data and the current timestamp
 ///
-fn create_uptime_history(
+pub(crate) fn create_uptime_history(
     site_name: &str,
     current_status: UptimeStatus,
     site_history: &VecDeque<HistoryEntry>,
@@ -812,6 +872,7 @@ mod tests {
         let config = Arc::new(RwLock::new(Config {
             site_name: "Test Site".to_string(),
             clock: crate::config::Clock::None,
+            opentelemetry_endpoint: None,
             sites: vec![],
         }));
 

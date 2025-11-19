@@ -32,6 +32,7 @@ use tracing::error;
 /// let config = Config {
 ///     site_name: "My Dashboard".to_string(),
 ///     clock: Clock::Hour24,
+///     opentelemetry_endpoint: None,
 ///     sites: vec![Site {
 ///         name: "Example".to_string(),
 ///         url: "https://example.com".to_string(),
@@ -111,6 +112,7 @@ pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoR
             let config_for_client = ConfigUpdate {
                 site_name: config.site_name.clone(),
                 clock: config.clock.to_string(),
+                opentelemetry_endpoint: config.opentelemetry_endpoint.clone(),
                 sites: config
                     .sites
                     .iter()
@@ -191,6 +193,7 @@ mod tests {
         Config {
             site_name: site_name.to_string(),
             clock,
+            opentelemetry_endpoint: None,
             sites: vec![Site {
                 name: "Docs".to_string(),
                 url: "https://docs.example.com".to_string(),
