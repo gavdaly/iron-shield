@@ -15,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
 /// Maximum number of historical uptime entries retained per site.
-const MAX_HISTORY_ENTRIES: usize = 20;
+pub const MAX_HISTORY_ENTRIES: usize = 50;
 
 /// Represents the uptime status of a monitored website
 ///
@@ -65,8 +65,9 @@ pub enum UptimeStatus {
 /// * `site_id` - Unique identifier for the site (typically the site name)
 /// * `status` - Current status of the site (Up, Down, or Loading)
 /// * `timestamp` - Unix timestamp when this record was created
-/// * `history` - A collection of the last 20 status checks for trend analysis
+/// * `history` - A collection of the last `MAX_HISTORY_ENTRIES` status checks for trend analysis
 /// * `uptime_percentage` - Calculated percentage of "up" time in the history (excluding Loading statuses)
+/// * `max_history_entries` - Maximum number of history samples retained (mirrors `MAX_HISTORY_ENTRIES`)
 ///
 /// # Examples
 ///
@@ -94,6 +95,7 @@ pub enum UptimeStatus {
 ///     ],
 ///     uptime_percentage: 66.67,
 ///     response_time_ms: Some(180),
+///     max_history_entries: iron_shield::uptime::MAX_HISTORY_ENTRIES,
 /// };
 ///
 /// println!("Site {} has {}% uptime", history.site_id, history.uptime_percentage);
@@ -114,12 +116,14 @@ pub struct UptimeHistory {
     pub status: UptimeStatus,
     /// Unix timestamp when this record was created
     pub timestamp: u64,
-    /// A collection of the last 20 status checks for trend analysis
-    pub history: Vec<HistoryEntry>, // Last 20 status checks
+    /// A collection of the last `MAX_HISTORY_ENTRIES` status checks for trend analysis
+    pub history: Vec<HistoryEntry>, // Last MAX_HISTORY_ENTRIES status checks
     /// Calculated percentage of "up" time in the history (excluding Loading statuses)
     pub uptime_percentage: f64, // Percentage of "up" time in the history
     /// The response time (in milliseconds) for the latest check, if available
     pub response_time_ms: Option<u64>,
+    /// Maximum number of history entries retained for this site
+    pub max_history_entries: usize,
 }
 
 /// Result of a single uptime probe with the measured response time.
@@ -222,7 +226,7 @@ pub fn snapshot_current_histories(state: &UptimeState) -> Vec<UptimeHistory> {
 /// prevent overwhelming the system with too many HTTP requests at once.
 ///
 /// The implementation initializes all sites with a "Loading" status and then begins periodic checks.
-/// It maintains a history of the last 20 status checks for each site and calculates the uptime
+/// It maintains a history of the last `MAX_HISTORY_ENTRIES` status checks for each site and calculates the uptime
 /// percentage based on successful checks (excluding "Loading" statuses from the calculation).
 ///
 /// # Arguments
@@ -643,6 +647,7 @@ pub(crate) fn create_uptime_history(
         history: site_history.iter().cloned().collect(),
         uptime_percentage,
         response_time_ms,
+        max_history_entries: MAX_HISTORY_ENTRIES,
     }
 }
 
@@ -872,6 +877,10 @@ mod tests {
             ]
         );
         assert_eq!(uptime_history.response_time_ms, Some(120));
+        assert_eq!(
+            uptime_history.max_history_entries,
+            MAX_HISTORY_ENTRIES
+        );
 
         // Check that timestamp is reasonable (within a few seconds of now)
         let current_time = std::time::SystemTime::now()
@@ -1000,6 +1009,7 @@ mod tests {
             ],
             uptime_percentage: 50.0,
             response_time_ms: Some(250),
+            max_history_entries: MAX_HISTORY_ENTRIES,
         };
 
         // Test serialization/deserialization
@@ -1017,6 +1027,10 @@ mod tests {
         assert_eq!(
             uptime_history.response_time_ms,
             deserialized.response_time_ms
+        );
+        assert_eq!(
+            uptime_history.max_history_entries,
+            deserialized.max_history_entries
         );
     }
 
