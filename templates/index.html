@@ -13,7 +13,7 @@
         <title>{{config.site_name}}</title>
     </head>
 
-    <body>
+    <body data-max-history="{{ max_history_entries }}">
         {% match config.clock %} {% when Clock::Hour24 %}
         <header role="banner">
             <div id="clock-container" aria-label="Current time">

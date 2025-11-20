@@ -57,6 +57,8 @@ pub struct IndexTemplate {
     current_time: String,
     /// JSON representation of the configuration for the frontend settings modal
     config_json: String,
+    /// Maximum number of uptime history entries shown in the UI
+    max_history_entries: usize,
 }
 
 /// Generates the index template with loaded configuration
@@ -145,6 +147,7 @@ pub async fn generate_index(State(state): State<Arc<UptimeState>>) -> impl IntoR
                 config,
                 current_time,
                 config_json,
+                max_history_entries: crate::uptime::MAX_HISTORY_ENTRIES,
             };
             match template.render() {
                 Ok(html) => Html(html).into_response(),
@@ -245,6 +248,7 @@ mod tests {
             config,
             current_time: "10:00:00 UTC".to_string(),
             config_json: "{}".to_string(),
+            max_history_entries: crate::uptime::MAX_HISTORY_ENTRIES,
         };
 
         let rendered = template

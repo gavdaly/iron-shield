@@ -15,9 +15,11 @@ interface UptimeInfo {
   uptime_percentage: number;
   history: HistorySample[];
   response_time_ms?: number | null;
+  max_history_entries?: number;
 }
 
-const MAX_HISTORY_BARS = 12;
+const DEFAULT_MAX_HISTORY_BARS = 50;
+let maxHistoryBars = resolveMaxHistoryBars();
 const HISTORY_ANIMATION_DURATION = 420;
 const STATUS_LABELS: Record<string, string> = {
   disabled: "Paused",
@@ -101,13 +103,14 @@ function updateSiteCard(info: UptimeInfo): void {
     }
 
     if (historyElement) {
+      applyMaxHistoryOverride(info.max_history_entries);
       renderHistory(historyElement, info.history, info.site_id);
     }
   });
 }
 
 function renderHistory(element: HTMLElement, history: HistorySample[], siteId: string): void {
-  const recentHistory = history.slice(-MAX_HISTORY_BARS);
+  const recentHistory = history.slice(-maxHistoryBars);
   const historyKey = createHistoryKey(recentHistory);
 
   if (recentHistory.length === 0) {
@@ -135,8 +138,8 @@ function renderHistory(element: HTMLElement, history: HistorySample[], siteId: s
   const existingWrapperCount = element.querySelectorAll(".history-bar-wrapper").length;
   const shouldAnimateShift =
     Boolean(previousKey && previousKey !== historyKey) &&
-    recentHistory.length === MAX_HISTORY_BARS &&
-    existingWrapperCount === MAX_HISTORY_BARS;
+    recentHistory.length === maxHistoryBars &&
+    existingWrapperCount === maxHistoryBars;
 
   if (shouldAnimateShift) {
     animateHistoryTransition(element, recentHistory, siteId, historyKey);
@@ -199,6 +202,28 @@ function buildHistoryBars(
   element.appendChild(fragment);
   element.setAttribute("aria-label", `Last ${history.length} checks for ${siteId}`);
   element.dataset.historyKey = options.historyKey;
+}
+
+function resolveMaxHistoryBars(): number {
+  const dataValue = document.body?.dataset?.maxHistory;
+  const parsed = Number.parseInt(dataValue ?? "", 10);
+
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+
+  return DEFAULT_MAX_HISTORY_BARS;
+}
+
+function applyMaxHistoryOverride(override?: number): void {
+  if (typeof override !== "number") {
+    return;
+  }
+
+  const normalized = Math.floor(override);
+  if (Number.isFinite(normalized) && normalized > 0) {
+    maxHistoryBars = normalized;
+  }
 }
 
 function animateHistoryTransition(
