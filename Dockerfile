@@ -4,14 +4,7 @@ FROM rust:1.76 AS builder
 WORKDIR /app
 
 # Copy over the manifests
-COPY ./Cargo.lock ./Cargo.lock
-COPY ./Cargo.toml ./Cargo.toml
-
-# Copy over the source code
-COPY ./src ./src
-COPY ./build.rs ./build.rs
-COPY ./frontend ./frontend
-COPY ./templates ./templates
+COPY ./ ./
 
 # Build the backend and frontend
 RUN cargo build --release
